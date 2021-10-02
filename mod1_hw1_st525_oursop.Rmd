@@ -1,0 +1,151 @@
+---
+title: "mod1_hw1_st525_oursop"
+author: "Philip Ourso"
+date: "9/29/2021"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+```
+
+```{r, echo=F, message=F, warning=F}
+library(tidyverse)
+library(tidytext)
+library(directlabels)
+library(colorspace)
+library(hexbin)
+library(RColorBrewer)
+library(vtable)
+```
+
+## Module 1 HW1
+
+1. Xelox study
+  a. What  is the survival time of interest in this study?
+  
+      The survival time is from the entry into the clinical trial until the progression of the patient's cancer or death.
+  
+  b. What is the main reason for survival time to be censored in this study?
+      
+      The primary reason for censoring would be the end of the study.
+      
+  c. If all survival times can be observed and there is no censoring, how would you estimate the mean survival time of patients on XELOX chemotherapy?
+      
+      Given no censoring, the mean survival time could be calculated by a simple arithmetic mean. However, the median would be a better representative of the centrality of survival times, as it is more robust to outliers.
+      
+  d. In this study, the survival times were censored for some patients. Discuss possible consequences by directly using the statistical method you propose in (c) for data generated from this study.
+      
+      Given censored data, the above approach (simple arithmetical mean) would result in inaccurate mean survival times. For patients with Type 1 right-censored survival times, the true survival time is somewhere to the right of the censored survival time and the calculated mean survival time would be an underestimate.
+      Since the patients entered the study upon the beginning of treatment, it is assumed that random right censoring due to delayed entry is not relevant. However, random censoring could occur if patients dropped out of the study, for example by moving to another hospital or ending treatment early. This would also result in an inaccurate mean survival time.
+      The same issue with censored survival times would apply to the median, of course.
+      
+2. Two survival curves
+  a. Which group has a better survival profile before time == 5?
+      
+      Group A shows a better survival profile before time == 5.
+      
+  b. Which group has a better survival profile after time == 5?
+      
+      Group B shows a better survival profile after time == 5.
+      
+  c. Which group has a longer median survival time?
+      
+      Group A has a longer median survival time.
+
+3. Consider the life table given in the following.
+  a. Compute and plot the estimated survival function.
+
+```{r, echo=F, message=F, warning=F}
+n = 1100
+df = data.frame(
+  'year' = c(seq(0, 9, 1)),
+  'patients' = c(1100, 860, 680, 496, 358, 240, 180, 128, 84, 52)
+)
+df %>%
+  mutate(s_hat = round(patients/ n, 5)) %>%
+  ggplot(., aes(x = year, y = s_hat)) +
+    geom_step() + 
+    geom_line(alpha=0.25, linetype='dashed') +
+    scale_x_continuous(breaks = seq(0,9,1)) +
+    theme_minimal() +
+    theme(
+      panel.grid = element_blank()
+    ) +
+    labs(
+      title = "Estimated Survivorship Function",
+      x = "Year",
+      y = "Estimated Survivorship Function"
+    )
+  
+#head(df, 10)
+```
+  
+  b. What is the estimated probability that an individual is still alive after 5 years?
+      
+      The estimated probability that an individual is still alive after 5 years is 0.22.
+```{r, echo=F}      
+df %>%
+  mutate(s_hat = round(patients/ n, 5)) %>%
+  filter(year==5)
+```
+
+4. The Medical Birth Registry
+
+  a. Import the data
+```{r, echo=F}
+birth = read.csv('HW1_dataSecondBirth-1.csv')
+head(birth, 20)
+```
+
+  b. Obtain a basic summary of each variable in the data. What is the percentage of women whose first child died within one year? What is the percentage of data that was censored?
+      
+      0.49% experienced death of a first child within one year (death==1).
+      69.5% of the data was censored (status==0)
+```{r, echo=F}
+summary(birth)
+
+#birth %>%
+#  summarize_all(
+#    list(mean, median)
+#  )
+```
+
+  c. For women with second birth observed (status=1), make side-by-side boxplots of time to second birth (time) by death.
+```{r}
+birth %>%
+  filter(status==1) %>%
+  ggplot(., aes(x=factor(death), y=time, group=death)) +
+    geom_boxplot() +
+    theme_minimal() +
+    theme(
+      panel.grid = element_blank()
+    ) +
+    labs(
+      title = "Time to second birth by Death",
+      x = "Death",
+      y = "Time (days)"
+    )
+
+```
+
+  d. For women with second birth observed (status=1), is time to second birth affected if the first child dies within one year of its birth? Explain.
+    
+    Yes, viewing the above boxplots indicates that the median time to second birth appears to be substantially lower for women that experienced the death of their first child in within one year of birth. 
+    The median times to second birth are 504 and 913 for women that experienced the loss of their first child within a year and those that did not, respectively.
+
+```{r, echo=F, message=F, error=F}
+birth %>%
+  filter(status==1) %>%
+  group_by(death) %>%
+  summarize(Median_time = median(time),
+            Mean_time = mean(time),
+            Sd_time = sd(time),
+            Count_time= n()
+            )
+
+```
+
+### Appendix: R code
+```{r ref.label=knitr::all_labels(), echo = T, eval = F}
+```
