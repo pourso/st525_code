@@ -1,0 +1,311 @@
+---
+title: "mod2_hw1_st525_oursop"
+author: "Philip Ourso"
+date: "10/8/2021"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+```
+
+```{r, echo=F, message=F, warning=F}
+library(tidyverse)
+library(tidytext)
+library(directlabels)
+library(colorspace)
+library(hexbin)
+library(RColorBrewer)
+library(vtable)
+```
+
+## Module 2 HW1
+
+1. Consider the following life table
+  a. Compute and plot the estimated hazard function
+
+```{r, echo=F, message=F, warning=F}
+n = 1100
+
+df = data.frame(
+  'year' = c(seq(0, 9, 1)),
+  'patients' = c(1100, 860, 680, 496, 358, 240, 180, 128, 84, 52),
+  'casualties' = c(240, 180, 184, 138, 118, 60, 52, 44, 32, 28)
+)
+
+df_hat = df %>%
+  mutate(
+    s_hat = round(patients/ n, 5),
+    f_hat = round(casualties/ n, 5),
+    h_hat = round(casualties/ patients, 5),
+    year_mid = year + 0.5
+    )
+
+df_hat_s = rbind(c(0, 1100, 0, 1.0, 0.0, 0.0, 0.0), df_hat)
+
+head(df_hat_s)
+
+
+df_hat_s[0:10,] %>%
+  ggplot(., aes(x = year_mid, y = h_hat)) +
+    geom_line() + 
+    geom_step(alpha=0.25, linetype='dashed') +
+    scale_x_continuous(breaks = seq(0,9,1)) +
+    theme_minimal() +
+    theme(
+      panel.grid = element_blank()
+    ) +
+    labs(
+      title = "Estimated Hazard Function",
+      x = "Year",
+      y = "Estimated Hazard Function"
+    )
+  
+#head(df, 10)
+```
+  b. Compute and plot the estimated probability density function
+  
+```{r, echo=F, message=F, warning=F}
+
+
+df_hat_s[0:10,] %>%
+  ggplot(., aes(x = year_mid, y = f_hat)) +
+    geom_line() + 
+    geom_step(alpha=0.25, linetype='dashed') +
+    scale_x_continuous(breaks = seq(0,9,1)) +
+    theme_minimal() +
+    theme(
+      panel.grid = element_blank()
+    ) +
+    labs(
+      title = "Estimated Density Function",
+      x = "Year",
+      y = "Estimated Density Function"
+    )
+  
+#head(df, 10)
+```
+
+  c. What is the shape of the estimated hazard function? Please interpret the shape of the hazard function.
+  
+      The estimated hazard function exhibits an increasing trend, indicating that the likelihood of an event is increasing given the probability of surviving to a later time interval.
+      
+  d. Please explain the difference between the hazard function and the probability density function.
+  
+      The probability density function (PDF) indicates the likelihood of a mortality in a small interval of time. In the absence of censored data, the PDF should sum to one, as eventually each individual dies. It can be used to determine the proportion of individuals dying within a range of time, as well as to identify periods of high mortality.
+      In contrast, the hazard function is conditioned upon the premise that an individual has survived to the beginning of the time interval. Hence it provides the probability of a mortality given that the individual has survived to the beginning of the time interval. Its shape provides intuition into the risk a surviving individual faces at a given time.
+
+
+2. SUppose the survival of a group of patients follows uniform distribution on [0,20] (in years) with PDF f(t) = 1/20 for t in [0,20]
+  
+  a. Find and plot the survival function.
+  
+```{r, echo=FALSE, message=F, warning=F}    
+df_2 = data.frame(
+  'year' = c(seq(0, 19, 1)),
+  'pdf' = c(rep((1/20), 20))
+)
+df_2_s = df_2 %>%
+  mutate(
+    cdf = pdf * year,
+    s = 1 - cdf
+  )
+#head(df_2_s,21)  
+
+#x_unif = seq(0, 19, 1)
+#y_unif = rep((1/20),20)
+df_2_s %>%
+  ggplot(., aes(x = year, y = s)) +
+    geom_line() + 
+#    geom_step(alpha=0.25, linetype='dashed') +
+    scale_x_continuous(breaks = seq(0,19,1)) +
+    theme_minimal() +
+    theme(
+      panel.grid = element_blank()
+    ) +
+    labs(
+      title = "Survival Function",
+      x = "Year",
+      y = "Survival Function"
+    )
+
+```
+  
+  b. What is the probability for a patient to survive for more than 10 years?
+      The probability of surviving more than 10 years is 0.5.
+  
+```{r, echo=F, message=F, warning=F}
+df_2_s[df_2_s$year==10,'s']
+```
+  
+  c. Find and plot the hazard function.
+```{r, echo=FALSE, message=F, warning=F, fig.align="center"}    
+df_2_s %>%
+  mutate(
+    h = pdf/ s
+  ) %>%
+  ggplot(., aes(x = year, y = h)) +
+    geom_line() + 
+#    geom_step(alpha=0.25, linetype='dashed') +
+    scale_x_continuous(breaks = seq(0,19,1)) +
+    theme_minimal() +
+    theme(
+      panel.grid = element_blank()
+    ) +
+    labs(
+      title = "Hazard Function",
+      x = "Year",
+      y = "Hazard Function"
+    )
+
+```
+  d. Why does the hazard function increase over time?
+
+      The hazard function describes the probability of an event in a time interval given that the individual has survived to the beginning of that time interval. For the uniform distribution, the survival function exhibits a consistently decreasing population, hence there is a lower and lower population as time increases. Given that the same number of individuals is dying in any given time interval, the ratio of the number dying in an interval to the number of individuals alive at the beginning of the interval gets larger and larger.
+  
+  e. What is the hazard rate at the 10th year? And how to interpret the hazard rate?
+  
+      The hazard rate at year 10 is 0.1. This indicates an individual that has lived 10 years has a 10% probability of mortality. In general, the hazard rate exhibits an exponentially increasing trend, indicating ever increasing risk of mortality as time increases.
+```{r, echo=F, message=F, warning=F}
+df_2_s %>%
+  mutate(
+    h = pdf/ s
+  ) %>%
+  filter(year == 10) %>%
+  select(h)
+```
+
+3. Give an example of statistical distribution whose hazard function has the following shapes.
+  
+  a. A distribution that has constant hazard rates.
+      
+      The exponential distribution exhibits constant hazard rate.
+  
+  b. A distribution that has increasing hazard rates.
+  
+      The uniform distribution has increasing hazard rate.
+  
+  c. A distribution that has decreasing hazard rates. 
+  
+      The Weibull distribution with gamma < 1 has a decreasing hazard rate.
+      
+  d. A distribution that has non-monotonic rates.
+
+      The log-normal distribution has a non-monotonic hazard function.
+
+4. Use simulation to understand the effect of censoring
+  
+```{r, echo=F, message=F, warning=F}  
+#set.seed(123)
+
+# accept ctime, sample_size, repetitions
+time_means = function(rate, sample_size, repeats, ctime) {
+#  set.seed(123)
+  s = rep(NA, sample_size)
+  o = rep(NA, sample_size)
+  d = rep(NA, sample_size)
+  
+  for (x in seq(repeats)) {
+    # create random sample
+    df_local = data.frame(
+      'stime' = c(rexp(sample_size, rate = rate))
+    )
+    df_local = df_local %>%
+      mutate(
+        otime = ifelse(stime < ctime, stime, ctime),
+        delta = ifelse(stime < ctime, 1, 0)
+      )
+#    append(s,mean(df_local$stime))
+#    append(o,mean(df_local$otime))
+#    append(d,mean(df_local$delta))
+    s[x] = mean(df_local$stime)
+    o[x] = mean(df_local$otime)
+    d[x] = mean(df_local$delta)
+  }
+  df = data.frame(
+    's' = s,
+    'o' = o,
+    'd' = d
+  )
+  df
+}
+  
+```
+  a. For ctime=2, obtain histogram plots of 1000 averages for stime and otime respectively. What is the average censoring rate?
+      
+      Histograms for censorted (blue) and uncensored (red) are displayed below.
+      
+      The average censoring rate is 0.01815.
+```{r, echo=F, message=F, warning=F}  
+set.seed(123)
+df_4_a = time_means(2, 1000, 1000, 2)
+```
+
+```{r, echo=F, message=F, warning=F}  
+df_4_a %>%
+  ggplot(., aes(x = s)) +
+  geom_histogram(fill='tomato', alpha=0.5) +
+  geom_histogram(aes(x=o), fill='cornflowerblue', alpha=0.5) +
+  theme_minimal() + 
+  theme(
+    panel.grid = element_blank()
+  ) +
+  labs(title = 'Histograms for censored and uncensored sample means')  
+
+1 - mean(df_4_a$d)
+```
+  b. For ctime=1, obtain histogram plots of 1000 averages for stime and otime respectively. What is the average censoring rate?
+  
+      Histograms for censorted (blue) and uncensored (red) are displayed below.
+      
+      The average censoring rate is 0.135.
+```{r, echo=F, message=F, warning=F}  
+set.seed(123)
+df_4_b = time_means(2, 1000, 1000, 1)
+```
+
+```{r, echo=F, message=F, warning=F}  
+df_4_b %>%
+  ggplot(., aes(x = s)) +
+  geom_histogram(fill='tomato', alpha=0.5) +
+  geom_histogram(aes(x=o), fill='cornflowerblue', alpha=0.5) +
+  theme_minimal() + 
+  theme(
+    panel.grid = element_blank()
+  ) +
+  labs(title = 'Histograms for censored and uncensored sample means')  
+
+1 - mean(df_4_b$d)
+```
+
+  c. For ctime=0.5, obtain histogram plots of 1000 averages for stime and otime respectively. What is the average censoring rate?
+  
+      Histograms for censorted (blue) and uncensored (red) are displayed below.
+      
+      The average censoring rate is 0.367.  
+```{r, echo=F, message=F, warning=F}  
+set.seed(123)
+df_4_c = time_means(2, 1000, 1000, 0.5)
+```
+
+```{r, echo=F, message=F, warning=F}  
+df_4_c %>%
+  ggplot(., aes(x = s)) +
+  geom_histogram(fill='tomato', alpha=0.5) +
+  geom_histogram(aes(x=o), fill='cornflowerblue', alpha=0.5) +
+  theme_minimal() + 
+  theme(
+    panel.grid = element_blank()
+  ) +
+  labs(title = 'Histograms for censored and uncensored sample means')  
+
+1 - mean(df_4_c$d)
+```
+  d. Based on the plots in (a)-(c), what is the consequence if we estimate the mean survival time using the sample average of censored data? What is the effect of censoring rate in this example? 
+  
+      Using the sample average of censored results in incorrect, lower sample averages than would obtained if uncensored data were available. As censoring rate increases, the sample average is increasingly incorrect.
+
+
+### Appendix: R code
+```{r ref.label=knitr::all_labels(), echo = T, eval = F}
+```
