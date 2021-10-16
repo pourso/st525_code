@@ -70,6 +70,79 @@ library(vtable)
     
     $$          = \alpha^{3} * e^{-3.5 \alpha}$$
 
+4. Consider the dataset (pharmacoSmoking)
+  a. Import the dataset into SAS or R. 
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+df = read.csv("pharmacoSmoking-new.csv",
+              header = TRUE,
+              colClasses = c(rep(NA, 5), "factor", rep(NA, 4), "character", "character", NA, NA)
+              )
+df = df %>%
+  mutate( gender = ifelse(gender==0, "Female", "Male"))
+head(df)
+```
+
+  b. Convert each of two date variables (admitdate, fdate) into SAS or R time variable. You can define new variables for these time variables.
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+df$admittime = df$admitdate %>%
+  as.Date(format = c("%m/%d/%Y"))
+
+df$ftime = df$fdate %>%
+  as.Date(format = c("%m/%d/%Y"))
+
+head(df)
+```
+
+  c.	In the dataset, the variables admitdate, fdate are in mm/dd/yyyy (mmddyy10.) format. Use a FORMAT statement to reformat (mmddyy10.) into (date.). For example, convert 01/13/2005 to 13JAN05.
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+df$admitdate <- df$admittime %>% 
+#  strsplit(split = ' ') %>% 
+#  sapply(function(x) x[1]) %>% 
+#  as.Date(format = c("%m/%d/%y")) %>%
+  format(format="%d%b%y") 
+
+df$fdate <- df$ftime %>% 
+#  strsplit(split = ' ') %>% 
+#  sapply(function(x) x[1]) %>% 
+#  as.Date(format = c("%m/%d/%y")) %>%
+  format(format="%d%b%y")
+
+head(df)
+```
+
+  d. Define a new variable called “time” in your dataset as the number of days between admitdate and fdate.
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+df$time = difftime(df$ftime, df$admittime, units = 'days') %>%
+  as.numeric()
+head(df)
+```
+  
+  e. Print the first 10 rows of your dataset.
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+head(df, 10)
+
+```
+
+  f. Using PROC GPLOT to create a plot of time against age by gender in the same plot. Please use different symbols for female and male groups. 
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+df %>%
+  ggplot(., aes(x = age, y = time, shape=gender, color=gender)) +
+  geom_point() +
+  theme_minimal() + 
+  theme(
+    panel.grid = element_blank()
+  ) + 
+  labs(
+    x = "Age (years)",
+    y = "Study time (days)",
+    title = "Study time vs Age",
+    color = "Gender",
+    shape = "Gender"
+  )
+
+```
+
+
 ### Appendix: R code
 ```{r ref.label=knitr::all_labels(), echo = T, eval = F}
 ```
