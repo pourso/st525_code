@@ -1,0 +1,75 @@
+---
+title: "mod3_hw1_st525_oursop"
+author: "Philip Ourso"
+date: "10/15/2021"
+output:
+  html_document:
+    df_print: paged
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+```
+
+```{r, echo=F, message=F, warning=F}
+library(tidyverse)
+library(tidytext)
+library(directlabels)
+library(colorspace)
+library(hexbin)
+library(RColorBrewer)
+library(vtable)
+```
+## Module 2 HW1
+
+1.	Suppose we are interested 
+  a. A patient was tested positive at the initial virus testing upon the entry of the study.
+      
+      Left censoring: the event is initial exposure to a virus and the individual must have been exposed at some time prior to entry to the study
+
+  b. A patient was tested negative during the entire study period and at the end of study.
+  
+      Right censoring: presumably type 1 right censoring, as the individual might be exposed to the virus some time after the study ends
+      
+  c. A patient was tested positive at third test, but negative at the previous test.
+  
+      Interval censoring: the patient was exposed during the time interval, but it is not known exactly when
+      
+2.	A large number of disease-free individuals 
+  a. A healthy individual enrolled in the study at age 30, never developed breast cancer during the study.
+  
+      Right censoring: presumably type 1 right censoring, as the individual might develop breast cancer some time after the study ends
+      
+  b. A healthy individual, enrolled in the study at age 40, was diagnosed with breast cancer at the fifth exam after enrollment (i.e. the disease started sometime between 12 and 15 years after enrollment).
+  
+      Interval censoring: the patient developed breast cancer during the time interval, but it is not known exactly when
+
+  c. A healthy individual, enrolled at the study at age 50, died from a cause unrelated to the disease at age 61.
+  
+      Random censoring: its possible the individual would develop breast cancer had they not died of other causes
+      
+  d. An individual, enrolled in the study at age 42, moved away from the community at age 55 and was never diagnosed with breast cancer during the period of observation. 
+  
+      Random censoring: its possible the individual would develop breast cancer but they were not observed for the entire study
+      
+3. Suppose the time to breakdown...
+    
+    PDF
+    $$f(t) = \alpha * e^{-\alpha * t} $$
+    
+    Survival function
+    $$S(t) = e^{-\alpha * t} $$
+
+    Likelihood function
+    $$L(\alpha) = \alpha * e^{-0.25 \alpha } * 
+                  \alpha * e^{-1.5 \alpha } *
+                  \alpha * e^{-0.75 \alpha } *
+                  e^{-0.25 \alpha} *
+                  e^{-0.75 \alpha }
+    $$
+    
+    $$          = \alpha^{3} * e^{-3.5 \alpha}$$
+
+### Appendix: R code
+```{r ref.label=knitr::all_labels(), echo = T, eval = F}
+```
