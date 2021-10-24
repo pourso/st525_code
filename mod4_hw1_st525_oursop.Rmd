@@ -3,9 +3,9 @@ title: "mod4_hw1_st525_oursop"
 author: "Philip Ourso"
 date: "10/23/2021"
 output:
+  pdf_document: default
   html_document:
     df_print: paged
-  pdf_document: default
 ---
 
 ```{r setup, include=FALSE}
@@ -20,6 +20,7 @@ library(colorspace)
 library(hexbin)
 library(RColorBrewer)
 library(vtable)
+library(km.ci)
 ```
 ## Module 4 HW1
 
