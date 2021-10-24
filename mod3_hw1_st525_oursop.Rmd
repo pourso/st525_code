@@ -3,6 +3,7 @@ title: "mod3_hw1_st525_oursop"
 author: "Philip Ourso"
 date: "10/15/2021"
 output:
+  pdf_document: default
   html_document:
     df_print: paged
 ---
@@ -65,10 +66,10 @@ library(vtable)
                   \alpha * e^{-1.5 \alpha } *
                   \alpha * e^{-0.75 \alpha } *
                   e^{-0.25 \alpha} *
-                  e^{-0.75 \alpha }
+                  e^{-1.25 \alpha }
     $$
     
-    $$          = \alpha^{3} * e^{-3.5 \alpha}$$
+    $$          = \alpha^{3} * e^{-5 \alpha}$$
 
 4. Consider the dataset (pharmacoSmoking)
   a. Import the dataset into SAS or R. 
@@ -79,7 +80,7 @@ df = read.csv("pharmacoSmoking-new.csv",
               )
 df = df %>%
   mutate( gender = ifelse(gender==0, "Female", "Male"))
-head(df)
+#head(df)
 ```
 
   b. Convert each of two date variables (admitdate, fdate) into SAS or R time variable. You can define new variables for these time variables.
@@ -90,7 +91,7 @@ df$admittime = df$admitdate %>%
 df$ftime = df$fdate %>%
   as.Date(format = c("%m/%d/%Y"))
 
-head(df)
+#head(df)
 ```
 
   c.	In the dataset, the variables admitdate, fdate are in mm/dd/yyyy (mmddyy10.) format. Use a FORMAT statement to reformat (mmddyy10.) into (date.). For example, convert 01/13/2005 to 13JAN05.
@@ -99,22 +100,24 @@ df$admitdate <- df$admittime %>%
 #  strsplit(split = ' ') %>% 
 #  sapply(function(x) x[1]) %>% 
 #  as.Date(format = c("%m/%d/%y")) %>%
-  format(format="%d%b%y") 
+  format(format="%d%b%y") %>%
+  toupper()
 
 df$fdate <- df$ftime %>% 
 #  strsplit(split = ' ') %>% 
 #  sapply(function(x) x[1]) %>% 
 #  as.Date(format = c("%m/%d/%y")) %>%
-  format(format="%d%b%y")
+  format(format="%d%b%y") %>%
+  toupper()
 
-head(df)
+#head(df)
 ```
 
   d. Define a new variable called “time” in your dataset as the number of days between admitdate and fdate.
 ```{r, echo=FALSE, message=FALSE, warning=FALSE}
 df$time = difftime(df$ftime, df$admittime, units = 'days') %>%
-  as.numeric()
-head(df)
+  as.numeric() 
+#head(df)
 ```
   
   e. Print the first 10 rows of your dataset.
@@ -124,7 +127,7 @@ head(df, 10)
 ```
 
   f. Using PROC GPLOT to create a plot of time against age by gender in the same plot. Please use different symbols for female and male groups. 
-```{r, echo=FALSE, message=FALSE, warning=FALSE}
+```{r, echo=FALSE, message=FALSE, warning=FALSE, fig.align="center"}
 df %>%
   ggplot(., aes(x = age, y = time, shape=gender, color=gender)) +
   geom_point() +
