@@ -254,7 +254,7 @@ head(df_1, 10)
     a. Import the data into SAS or R.  
 ```{r, echo=FALSE, message=FALSE, warning=FALSE}
 df_3 = read.csv("tongue.csv")
-#head(df_3)
+head(df_3)
 ```  
     b. In one figure, plot the KM estimates and their 95% point-wise CIs for patients with two different tumor types.  
 ```{r, echo=FALSE, message=FALSE, warning=FALSE}
@@ -278,104 +278,11 @@ logrank
 peto<-survdiff(Surv(time, delta) ~ type, rho=1, data = df_3)
 peto
 ```
-  
     d. Is the test result in (c) consistent with the plots given in (b)?  
     Yes, the test result weakly fails to reject the null hypothesis and it can be seen in the plot of the estimated survival functions that there is significant overlap in the point-wise confidence intervals.  
   
-  
-## Module 4 HW1
-
-1. In the definition of...
-    a. What does the term di/ ni estimate?  
-        The term estimates the conditional probability of failure at time ti given that the individual was alive just before time ti.
-    b. What does the term 1 - di/ ni estimate?  
-        The term estimates the conditional probability of survival of time ti given that the individual was alive just before time ti.
-    c. Do the exact values of censoring times play any role in the Kaplan-Meier estimator?  
-        The exact time of censoring can't produce a change in the KM estimator, but it does affect the number of survivors in the subsequent event time. 
-    d. Do the exact values of event times play any role in the Kaplan-Meier estimator?  
-        Event times indicate the only points at which the KM estimator decreases.
-    e. Show that when there is no censoring, the Kaplan-Meier estimator S_hat(t) reduces to the empirical survival function.
-        Several rows of survival data are displayed below, with both the Kaplan-Meier estimator and the empirical survival function calculated, assuming no censoring. As can be seen, the two estimators are in agreement.
-
-            ti| di| ni | 1-di/ni | KM                | S_hat(ti)     |
-            -----------------------------------------------------------
-            6 | 3 | 21 | 0.857   |0.857              | 18/21 == 0.857|
-            7 | 1 | 18 | 0.944   |0.857*0.944==0.809 | 17/21 == 0.809|
-            10| 1 | 17 | 0.941   |0.809*0.941==0.761 | 16/21 == 0.762|
-        
-2. Suppose that the following remission...  
-    3.0, 6.5, 6.5, 10, 12, 15, 8.4+, 4.0+, 5.7+, 10+  
-    a. Compute the Kaplan-Meier estimate manually and plot the estimated survival curve. (In your solution, please include any tables that you used to construct the Kaplan-Meier).  
-    
-            ti  | di| ni | 1-di/ni | KM                |
-            --------------------------------------------
-            3   | 1 | 10 | 0.9     |0.9                |
-            4+  |   |  9 |         |                   |
-            5.7+|   |  8 |         |                   |
-            6.5 | 2 |  7 | 0.714   |0.9*0.714 == 0.643 |
-            8.4+|   |  5 |         |                   |
-            10  | 1 |  4 | 0.750   |0.643*0.750== 0.482|
-            10+ |   |  3 |         |                   |
-            12  | 1 |  2 | 0.500   |0.482*0.5 == 0.241 |
-            15  | 1 |  1 | 0       |0.241*0 == 0       |
-
-```{r, echo=FALSE, warning=FALSE, message=FALSE}
-df = data.frame(
-  ti = c(0, 3, 6.5, 10, 12, 15),
-  km = c(1, 0.9, 0.643, 0.482, 0.241, 0)
-)
-#head(df)
-
-ggplot(df, aes(x=ti, y=km)) +
-  geom_step() +
-  geom_hline(yintercept=0.5, color='red', linetype='dashed') +
-  theme_minimal() +
-  theme(
-    panel.grid = element_blank()
-  ) +
-  labs(
-    title = "Kaplan-Meier Estimator",
-    x = "Event time (months)",
-    y = "Estimate survival function"
-  )
-
-```  
-  
-  
-        
-  
-  b. Find the median survival time and the corresponding estimated survival function value.  
-      The median survival time is defined as the smallest time at which the survival probability drops to 0.5 or below. It can be seen that the median survival time is 10 months, with an estimated survival function value of 0.482.  
-  c. Compute the cumulative hazard at 10 months.  
-      H(t) = -ln( S(t)) = -ln( 0.482) = 0.73  
-      
-3. The following data is based on a...  
-    a. Compute the nonparametric estimate for the survival function manually using Life-Table method.   
-      
-            ei = ni - ci/2
-            mi = di/ ei
-            Si = Si-1 * 1 - mi
-  
-            Age int  | di | ci | ei     | mi   | Si
-            -------------------------------------------------
-            45-50    | 17 | 29 | 1556.5 |0.011 | 0.99       |
-            50-55    | 36 | 60 | 1509.5 |0.024 | 0.97       |
-            55-60    | 62 | 83 | 1432.0 |0.043 | 0.92       |
-            60-65    | 76 |441 | 1149.5 |0.066 | 0.86       |
-            65-70    | 50 |439 |  854.0 |0.059 | 0.81       |
-            70-75    |  9 |262 |  673.0 |0.013 | 0.80       |
-            75-80    |  0 |  7 |  660.5 |    0 | 0.80       |
-
-  
-
-    b. What is the estimated survival probability for interval [55-60]?  
-          0.92
-          
-    c. Provide an interpretation of the survival probability in (b).  
-          There is a 0.92 probability that an individual will not develop CHD between ages 55 and 60 given that they've not developed CHD by age 55.
-
-4. Here we consider the pharmacoSmoking data set...  
-  a. Import the data into SAS or R and calculate the survival time of interest as the number of days between admission date and last follow up date.  
+4. Here we consider...
+    a. Import the data into SAS or R and calculate the survival time of interest as the number of days between admission date and follow up date.   
 ```{r, echo=FALSE, message=FALSE, warning=FALSE}
 df = read.csv("pharmacoSmoking-new.csv",
               header = TRUE,
@@ -394,126 +301,38 @@ df$time = difftime(df$ftime, df$admittime, units = 'days') %>%
   as.numeric() 
 
 head(df)
-```
-
-      b. Compute the Kaplan-Meier estimator for male and female groups separately and plot the two survival curves in the same figure.
-      
+```    
+  b. For all four groups listed above, plot their survival curves along with their 95% point-wise confidence intervals for survival curves.  
 ```{r, echo=FALSE, message=FALSE, warning=FALSE}
-library(survival)
-library(survminer)
-
-censored <- Surv(df$time, df$relapse) #Creates a survival object
-
-fw <- survfit(Surv(time, relapse) ~ 1, data = df[df$gender=="Female",], conf.type="none") 
-
-fm <- survfit(Surv(time, relapse) ~ 1, data = df[df$gender!="Female",], conf.type="none") 
-
-
-par(cex=.7)
-plot(fw,xlab="Time",ylab="Relapse probability", col=4)
-lines(fm, lty=2,col=2)
-legend(0.5, .2, c("Female", "Male" ), lty=c(1,2),col=c(4,2))
-
-#fit = list(male=fm, female=fw)
-
-#table1 <- summary(f1, times = c(0, unique(MP6$time6mp)))
-#censored <- Surv(MP6$time6mp, MP6$cstatus) #Creates a survival object
-#ggsurvplot(fit = fit, data = censored, combine = TRUE, 
-#conf.int = FALSE, conf.int.style = 'step',
-#legend.title = 'Kaplan-Meier plot with point-wise confidence intervals')
-```  
-        
-  c. Can an Exponential distribution fit the survival time well for male or female group?  
-      The -log(survival time) vs time plots are approximately linear, so its reasonable to model the survival time as an exponential distribution.  
-      
-```{r, echo=FALSE, message=FALSE, warning=FALSE}
-table_w <- summary(fw, times = c(0, unique(df[df$gender=="Female","time"])))
-
-table_w <- data.frame(
-  time = table_w$time, 
-  survival = table_w$surv, 
-  failure = 1-table_w$surv, 
-  Survival.Std.Err = table_w$std.err, 
-  No.Left = table_w$n.risk, 
-  No.Failed = table_w$n.event, 
-  No.Censored = table_w$n.censor
-  )
-
-
-table_w2 <- table_w[c(table_w$No.Failed > 0), ]
-table_w2 <- data.frame(rbind(table_w[1, ], table_w2, table_w[17, ]))
-
-ggplot(data = table_w2) + 
-  geom_line(aes(x = time, y = -log(survival))) +
-  geom_point(aes(x = time, y = -log(survival)), size = 2, shape = 1) +
-  labs(title = 'Negative Log of Estimated Female Survivor Function') +
-  ylab('-log(Survival Probability)') + xlab('time') +
-  scale_x_continuous(limits = c(0, 35))
-
-table_m <- summary(fw, times = c(0, unique(df[df$gender!="Female","time"])))
-
-table_m <- data.frame(
-  time = table_m$time, 
-  survival = table_m$surv, 
-  failure = 1-table_m$surv, 
-  Survival.Std.Err = table_m$std.err, 
-  No.Left = table_m$n.risk, 
-  No.Failed = table_m$n.event, 
-  No.Censored = table_m$n.censor
-  )
-
-
-table_m2 <- table_m[c(table_m$No.Failed > 0), ]
-table_m2 <- data.frame(rbind(table_m[1, ], table_m2, table_m[17, ]))
-
-ggplot(data = table_m2) + 
-  geom_line(aes(x = time, y = -log(survival))) +
-  geom_point(aes(x = time, y = -log(survival)), size = 2, shape = 1) +
-  labs(title = 'Negative Log of Estimated Male Survivor Function') +
-  ylab('-log(Survival Probability)') + xlab('time') +
-  scale_x_continuous(limits = c(0, 35))
-```
-          
-  d. For both male and female groups, plot the 95% confidence interval for the survival curves using linear transformation method and log-transformed method  
-        
+fit4 <- survfit(Surv(time, relapse) ~ gender + grp, data = df)
+ggsurvplot(fit = fit4, data = df, conf.int = TRUE)
+```        
+  c. Test the hypothesis that there is no difference in survival for patients in four groups. Clearly state the null and alternative hypotheses. Provide the test statistic and conclusions based on these results.  
+    H0: there is no difference in survival functions across the four groups of patients.  
+    HA: there is a difference in survival functions across the four groups of patients.  
+    
+    The log-rank test statistic is 11.15 based on 3 degrees of freedom, resulting in a p-value of 0.011.  
+    The Peto-Peto test statistic is 8.67 based on 3 degrees of freedom, resulting in a p-value of 0.034.  
+    
+    All test statistics are in agreement, weakly rejecting the null hypothesis, concluding that there is evidence to find that the survival functions of the groups are statistically different.  
 ```{r, echo=FALSE, warning=FALSE, message=FALSE}
-censored <- Surv(df$time, df$relapse) #Creates a survival object
-
-# female survival curve and CIs
-fw <- survfit(Surv(time, relapse) ~ 1, data = df[df$gender=="Female",], conf.type="none") 
-#fw.ci.log<-survfit(Surv(time, relapse) ~ 1, data = df[df$gender=="Female",], conf.type = 'log')
-fw.ci.log = km.ci(fw, conf.level = 0.95, method = "log")
-#fw.ci.linear<-survfit(Surv(time, relapse) ~ 1, data = df[df$gender=="Female",], conf.type = 'plain')
-fw.ci.linear = km.ci(fw, conf.level = 0.95, method = "linear")
-
-fm <- survfit(Surv(time, relapse) ~ 1, data = df[df$gender!="Female",], conf.type="none") 
-#fm.ci.log<-survfit(Surv(time, relapse) ~ 1, data = df[df$gender!="Female",], conf.type = 'log')
-fm.ci.log = km.ci(fm, conf.level = 0.95, method = "log")
-#fm.ci.linear<-survfit(Surv(time, relapse) ~ 1, data = df[df$gender!="Female",], conf.type = 'plain')
-fm.ci.linear = km.ci(fm, conf.level = 0.95, method = "linear")
-
-
-par(cex=.7)
-plot(fw,xlab="Time",ylab="Relapse probability", col=4)
-lines(fw.ci.log, lty=1,col=4)
-lines(fw.ci.linear, lty=3,col=4)
-lines(fm, lty=2,col=2)
-lines(fm.ci.log, lty=2,col=2)
-lines(fm.ci.linear, lty=3,col=2)
-legend(0.5, .2, c("Female", "Male" ), lty=c(1,2),col=c(4,2))
-
-
-#ci.log<-survfit(Surv(time6mp, cstatus) ~ 1, data = MP6, conf.type = 'log')
-#ci.linear<-survfit(Surv(time6mp, cstatus) ~ 1, data = MP6, conf.type = 'plain')
-#par(cex=.7)
-#plot(f1,xlab="Time",ylab="Survial probability",lwd=2)
-#lines(ci.log, lty=2,col=2)
-#lines(ci.linear, lty=4,col=3)
-
+library("survMisc")
+comp(ten(fit4))
 ```
   
-  e. From the estimated survival curves, how do the survival experiences of the female and male patients compare?  
-      Females initially show a better survival probability, and indeed have a better median survival time, but begin to exhibit a similar survival time, until about 60 days or so, after which males exhibit a better survival probability.  
+  d. Report pair-wise comparison results to better understand how these four groups are different and summarize your findings.  
+    F1: the female combination group differed from F2, the female patch only group.  
+    F2: the female patch-only group differed from F1 and M1, the combination groups.  
+    M1: the male combination group differed from the female patch-only gruop.  
+    M2: the male patch-only group didn't statistically differ from the other groups.  
+    
+    These findings are consistent with the plot of survival functions: F2 is the most different, although its not substantially different to M2 in earlier times. Its difference to M2 is confined to the later times, when the variance is higher. 
+```{r, echo=FALSE, warning=FALSE, message=FALSE}
+pairwise_survdiff(Surv(time, relapse) ~ gender + grp, data = df,
+                  p.adjust.method = "bonferroni")
+```
+    
+
         
 ### Appendix: R code
 ```{r ref.label=knitr::all_labels(), echo = T, eval = F}
