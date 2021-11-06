@@ -1,0 +1,339 @@
+---
+title: "mod5_hw1_st525_oursop"
+author: "Philip Ourso"
+date: "10/30/2021"
+output:
+  html_document:
+    df_print: paged
+  pdf_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+```
+
+```{r, echo=F, message=F, warning=F}
+library(tidyverse)
+library(tidytext)
+library(directlabels)
+library(colorspace)
+library(hexbin)
+library(RColorBrewer)
+library(vtable)
+library(km.ci)
+```
+## Module 5 HW1
+
+1. Let us consider...
+    a. Form a 2x2 table and record the entries for each event time.  
+        
+            ti = 15  
+               | di | ai |     
+            -----------------  
+            A  |    | 5  | 5       
+            B  | 1  | 4  | 5      
+            Tot| 1  | 9  | 10        
+    
+            ti = 18
+               | di | ai |
+            -----------------
+            A  |    | 4  | 4   
+            B  | 1  | 3  | 4
+            Tot| 1  | 7  | 8     
+    
+            ti = 19
+               | di | ai |
+            -----------------
+            A  |    | 3  | 3   
+            B  | 2  | 1  | 3
+            Tot| 2  | 4  | 6     
+    
+            ti = 20
+               | di | ai |
+            -----------------
+            A  |    | 3  | 3   
+            B  | 1  |    | 1
+            Tot| 1  | 3  | 4     
+    
+            ti = 23
+               | di | ai |
+            -----------------
+            A  | 1  | 1  | 2   
+            B  |    |    |   
+            Tot| 1  | 1  | 2     
+          
+```{r, include=FALSE, echo=FALSE, warning=FALSE, message=FALSE}
+df_1 = data.frame(
+  ti = c(23, 16, 18, 20, 24, 15, 18, 19, 19, 20),
+  ci = c(1,0,0,0,0,1,1,1,1,1),
+  g  = c(rep('A', 5), rep('B', 5))
+)
+head(df_1, 10)
+
+```
+  
+    b. For each table, compute the observed # of events, expected number of events, and variance for group A.  
+        
+            ti = 15  
+               | di | ai |   | ei | vi       
+            ----------------------------  
+            A  | 0  | 5  | 5 |0.5 | 0.25         
+            B  | 1  | 4  | 5 |    |           
+            Tot| 1  | 9  | 10|    |             
+    
+            ti = 18
+               | di | ai |   | ei | vi       
+            ----------------------------
+            A  |    | 4  | 4 | 0.5| 0.25          
+            B  | 1  | 3  | 4 |    |            
+            Tot| 1  | 7  | 8 |    |                 
+    
+            ti = 19
+               | di | ai |   | ei | vi       
+            ----------------------------
+            A  |    | 3  | 3 | 1  | 0.4     
+            B  | 2  | 1  | 3 |    |          
+            Tot| 2  | 4  | 6 |    |               
+    
+            ti = 20
+               | di | ai |   | ei | vi       
+            ----------------------------
+            A  |    | 3  | 3 |0.75| 0.1875            
+            B  | 1  |    | 1 |    |          
+            Tot| 1  | 3  | 4 |    |               
+    
+            ti = 23
+               | di | ai |   | ei | vi       
+            ----------------------------
+            A  | 1  | 1  | 2 | 1  | 0            
+            B  |    |    |   |    |          
+            Tot| 1  | 1  | 2 |    |               
+          
+    c. Calculate the log-rank test statistic.  
+              
+            [(1 - 3.75) ^2] / 1.0875 == 6.954  
+  
+    d. Find the p-value and report your conclusion based on the test result.  
+        The p-value is 0.0084, which is less than the alpha value of 0.05 and hence the null hypothesis of equal survival functions across groups is rejected.  
+        
+```{r, include=FALSE, echo=FALSE, warning=FALSE, message=FALSE}
+1-pchisq(6.954, df=1)
+
+```
+  
+2. To compare two treatments...
+    a. Form a 2x2 table and record the entries for each event time.  
+
+            ti = 10  
+               | di | ai |     
+            -----------------  
+            A  |    | 7  | 7       
+            B  | 1  | 5  | 6      
+            Tot| 1  | 12 | 13        
+    
+            ti = 14
+               | di | ai |
+            -----------------
+            A  |    | 7  | 7   
+            B  | 1  | 4  | 5
+            Tot| 1  | 11 | 12     
+    
+            ti = 15
+               | di | ai |
+            -----------------
+            A  |    | 7  | 7   
+            B  | 1  | 3  | 4
+            Tot| 1  | 10 | 11     
+    
+            ti = 16
+               | di | ai |
+            -----------------
+            A  | 1  | 6  | 7   
+            B  |    | 3  | 3
+            Tot| 1  | 9  | 10     
+    
+            ti = 18
+               | di | ai |
+            -----------------
+            A  |    | 5  | 5   
+            B  | 1  | 2  | 3 
+            Tot| 1  | 7  | 8     
+    
+            ti = 20
+               | di | ai |
+            -----------------
+            A  | 1  | 2  | 3   
+            B  |    | 1  | 1 
+            Tot| 1  | 3  | 4     
+    
+            ti = 21
+               | di | ai |
+            -----------------
+            A  |    | 2  | 2   
+            B  | 1  |    | 1 
+            Tot| 1  | 2  | 3     
+    
+            ti = 28
+               | di | ai |
+            -----------------
+            A  | 1  | 1  | 2   
+            B  |    |    |  
+            Tot| 1  | 1  | 2     
+          
+    b. For each table, compute the observed # of events, expected number of events, and variance for group A.  
+        
+            ti = 10  
+               | di | ai |   | ei | vi          
+            ----------------------------  
+            A  |    | 7  | 7 |0.54| 0.25                 
+            B  | 1  | 5  | 6 |    |                 
+            Tot| 1  | 12 | 13|    |                   
+    
+            ti = 14
+               | di | ai |   | ei | vi          
+            ----------------------------
+            A  |    | 7  | 7 |0.58| 0.24 
+            B  | 1  | 4  | 5
+            Tot| 1  | 11 | 12     
+    
+            ti = 15
+               | di | ai |   | ei | vi          
+            ----------------------------
+            A  |    | 7  | 7 |0.64| 0.23   
+            B  | 1  | 3  | 4
+            Tot| 1  | 10 | 11     
+    
+            ti = 16
+               | di | ai |   | ei | vi          
+            ----------------------------
+            A  | 1  | 6  | 7 |0.7 | 0.21   
+            B  |    | 3  | 3
+            Tot| 1  | 9  | 10     
+    
+            ti = 18
+               | di | ai |   | ei | vi          
+            ----------------------------
+            A  |    | 5  | 5 |0.63| 0.23   
+            B  | 1  | 2  | 3 
+            Tot| 1  | 7  | 8     
+    
+            ti = 20
+               | di | ai |   | ei | vi          
+            ----------------------------
+            A  | 1  | 2  | 3 |0.75| 0.19   
+            B  |    | 1  | 1 
+            Tot| 1  | 3  | 4     
+    
+            ti = 21
+               | di | ai |   | ei | vi          
+            ----------------------------
+            A  |    | 2  | 2 |0.67| 0.22   
+            B  | 1  |    | 1 
+            Tot| 1  | 2  | 3     
+    
+            ti = 28
+               | di | ai |   | ei | vi          
+            ----------------------------
+            A  | 1  | 1  | 2 |  1 | 0   
+            B  |    |    |  
+            Tot| 1  | 1  | 2     
+  
+    c. Calculate the log-rank test statistic.  
+              
+            [(3 - 5.5) ^2] / 1.58 == 3.96  
+  
+    d. Find the p-value and report your conclusion based on the test result.  
+        The p-value is 0.047, which is less than the alpha value of 0.05 and hence the null hypothesis of equal survival functions across groups is rejected.  
+        
+```{r, include=FALSE, echo=FALSE, warning=FALSE, message=FALSE}
+1-pchisq(3.96, df=1)
+
+```
+
+3. A study was conducted...
+    a. Import the data into SAS or R.  
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+df_3 = read.csv("tongue.csv")
+head(df_3)
+```  
+    b. In one figure, plot the KM estimates and their 95% point-wise CIs for patients with two different tumor types.  
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+library(survival)
+library(survminer)
+#censored <- Surv(myel$dur, myel$status)
+fit1 <- survfit(Surv(time, delta) ~ type, data = df_3)
+ggsurvplot(fit = fit1, data = df_3, conf.int = TRUE)
+```      
+    c. Test the hypothesis that there is no difference in survival for patients in two tumor types. Clearly state the null and alternative hypotheses. Provide the test statistic and conclusions based on these results.  
+    H0: there is no difference in survival functions between the two groups of cancer patients, those with aneuploid tumors and those with diploid tumors.  
+    HA: there is a difference in survival functions between the two groups of cancer patients, those with aneuploid tumors and those with diploid tumors.  
+    
+    The log-rank test statistic is 2.8 based on 1 degree of freedom, resulting in a p-value of 0.09.  
+    The Peto-Peto test statistic is 3.3 based on 1 degree of freedom, resulting in a p-value of 0.07.  
+    
+    Both test statistics are in agreement and we fail to reject the null hypothesis, concluding that there is no strong evidence to find that the survival functions of the groups are statistically different.  
+```{r, echo=FALSE, warning=FALSE, message=FALSE}
+logrank<-survdiff(Surv(time, delta) ~ type, data = df_3)
+logrank
+peto<-survdiff(Surv(time, delta) ~ type, rho=1, data = df_3)
+peto
+```
+    d. Is the test result in (c) consistent with the plots given in (b)?  
+    Yes, the test result weakly fails to reject the null hypothesis and it can be seen in the plot of the estimated survival functions that there is significant overlap in the point-wise confidence intervals.  
+  
+4. Here we consider...
+    a. Import the data into SAS or R and calculate the survival time of interest as the number of days between admission date and follow up date.   
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+df = read.csv("pharmacoSmoking-new.csv",
+              header = TRUE,
+              colClasses = c(rep(NA, 5), "factor", rep(NA, 4), "character", "character", NA, NA)
+              )
+df = df %>%
+  mutate( gender = ifelse(gender==0, "Female", "Male"))
+
+df$admittime = df$admitdate %>%
+  as.Date(format = c("%m/%d/%Y"))
+
+df$ftime = df$fdate %>%
+  as.Date(format = c("%m/%d/%Y"))
+
+df$time = difftime(df$ftime, df$admittime, units = 'days') %>%
+  as.numeric() 
+
+head(df)
+```    
+  b. For all four groups listed above, plot their survival curves along with their 95% point-wise confidence intervals for survival curves.  
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+fit4 <- survfit(Surv(time, relapse) ~ gender + grp, data = df)
+ggsurvplot(fit = fit4, data = df, conf.int = TRUE)
+```        
+  c. Test the hypothesis that there is no difference in survival for patients in four groups. Clearly state the null and alternative hypotheses. Provide the test statistic and conclusions based on these results.  
+    H0: there is no difference in survival functions across the four groups of patients.  
+    HA: there is a difference in survival functions across the four groups of patients.  
+    
+    The log-rank test statistic is 11.15 based on 3 degrees of freedom, resulting in a p-value of 0.011.  
+    The Peto-Peto test statistic is 8.67 based on 3 degrees of freedom, resulting in a p-value of 0.034.  
+    
+    All test statistics are in agreement, weakly rejecting the null hypothesis, concluding that there is evidence to find that the survival functions of the groups are statistically different.  
+```{r, echo=FALSE, warning=FALSE, message=FALSE}
+library("survMisc")
+comp(ten(fit4))
+```
+  
+  d. Report pair-wise comparison results to better understand how these four groups are different and summarize your findings.  
+    F1: the female combination group differed from F2, the female patch only group.  
+    F2: the female patch-only group differed from F1 and M1, the combination groups.  
+    M1: the male combination group differed from the female patch-only gruop.  
+    M2: the male patch-only group didn't statistically differ from the other groups.  
+    
+    These findings are consistent with the plot of survival functions: F2 is the most different, although its not substantially different to M2 in earlier times. Its difference to M2 is confined to the later times, when the variance is higher. 
+```{r, echo=FALSE, warning=FALSE, message=FALSE}
+pairwise_survdiff(Surv(time, relapse) ~ gender + grp, data = df,
+                  p.adjust.method = "bonferroni")
+```
+    
+
+        
+### Appendix: R code
+```{r ref.label=knitr::all_labels(), echo = T, eval = F}
+```
