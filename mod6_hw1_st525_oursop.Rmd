@@ -1,7 +1,7 @@
 ---
-title: "mod5_hw1_st525_oursop"
+title: "mod6_hw1_st525_oursop"
 author: "Philip Ourso"
-date: "10/30/2021"
+date: "11/6/2021"
 output:
   html_document:
     df_print: paged
@@ -13,17 +13,184 @@ knitr::opts_chunk$set(echo = FALSE)
 ```
 
 ```{r, echo=F, message=F, warning=F}
+library(colorspace)
+library(directlabels)
+library(hexbin)
+library(km.ci)
+library(RColorBrewer)
+library(survival)
+library(survminer)
 library(tidyverse)
 library(tidytext)
-library(directlabels)
-library(colorspace)
-library(hexbin)
-library(RColorBrewer)
 library(vtable)
-library(km.ci)
-```
-## Module 5 HW1
 
+```
+## Module 6 HW1
+
+1. Consider a two-group experiment...
+  a. Use the Kaplan-Meier method to estimate the survival functions for the two groups separately.  
+    The KM estimator survival functions are plotted below.
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+df_1 = data.frame(
+  time = c(c(123, 166, 188, 188, 192, 192, 201, 209, 213, 216, 216, 219, 230, 234, 246, 265, 304, 226, 244, 266), 
+           c(142, 156, 163, 188, 215, 232, 232, 233, 233, 233, 236, 245, 261, 280, 280, 296, 299, 363, 204, 344)),
+  status = c(rep(1, 17), rep(0,3), rep(1, 18), rep(0,2)),
+  group = c(rep("A", 20), rep("B", 20))
+)
+#head(df_1)
+
+df_A = df_1 %>%
+  filter(group == "A" )
+
+fit1 <- survfit(Surv(time, status) ~ 1, data = df_A)
+ggsurvplot(fit = fit1, data = df_A, conf.int = TRUE)
+
+df_B = df_1 %>%
+  filter(group == "B" )
+
+fit2 <- survfit(Surv(time, status) ~ 1, data = df_B)
+ggsurvplot(fit = fit2, data = df_B, conf.int = TRUE)
+
+```  
+
+  b. Based on the Kaplan-Meier estimators, can Weibull distribution be a good fit to the survival data in either group? Please provide relevant graph to support your answer.    
+    The log-negative-log plots vs log time are plotted below for both groups. Group A's curve has a slight "S" shape and group B's curve has several small steps, so neither are obviously strictly linear, but group A might be better fit by a Weibull regression model.
+    
+```{r, echo=FALSE, warning=FALSE, message=FALSE}    
+table_A <- summary(fit1, times = c(0, unique(df_A$time)))
+
+table_A <- data.frame(
+  time = table_A$time, 
+  survival = table_A$surv, 
+  failure = 1-table_A$surv, 
+  Survival.Std.Err = table_A$std.err, 
+  No.Left = table_A$n.risk, 
+  No.Failed = table_A$n.event, 
+  No.Censored = table_A$n.censor
+  )
+
+#head(table_A, 25)
+# retain only rows w/ events observed
+table_A2 <- table_A[c(table_A$No.Failed > 0), ]
+table_A2 <- data.frame(rbind(table_A[1, ], table_A2))
+#head(table_A2, 25)
+
+# plot -log(survival)
+ggplot(data = table_A2) + 
+  geom_line(aes(x = time, y = -log(survival))) +
+  geom_point(aes(x = time, y = -log(survival)), size = 2, shape = 1) +
+  labs(title = 'Negative Log of Estimated Group A Survivor Function') +
+  ylab('-log(Survival Probability)') + xlab('time') #+
+
+# plot -log(survival)
+ggplot(data = table_A2[-(1),]) + 
+  geom_line(aes(x = log(time), y = log(-log(survival)))) +
+  geom_point(aes(x = log(time), y = log(-log(survival))), size = 2, shape = 1) +
+  labs(title = 'Log Negative Log of Estimated Group A Survivor Function') +
+  ylab('log[-log(Survival Probability)]') + xlab('log(time)') #+
+
+#group B
+table_B <- summary(fit2, times = c(0, unique(df_B$time)))
+
+table_B <- data.frame(
+  time = table_B$time, 
+  survival = table_B$surv, 
+  failure = 1-table_B$surv, 
+  Survival.Std.Err = table_B$std.err, 
+  No.Left = table_B$n.risk, 
+  No.Failed = table_B$n.event, 
+  No.Censored = table_B$n.censor
+  )
+
+#head(table_A, 25)
+# retain only rows w/ events observed
+table_B2 <- table_B[c(table_B$No.Failed > 0), ]
+table_B2 <- data.frame(rbind(table_B[1, ], table_B2))
+#head(table_A2, 25)
+
+# plot -log(survival)
+ggplot(data = table_B2) + 
+  geom_line(aes(x = time, y = -log(survival))) +
+  geom_point(aes(x = time, y = -log(survival)), size = 2, shape = 1) +
+  labs(title = 'Negative Log of Estimated Group B Survivor Function') +
+  ylab('-log(Survival Probability)') + xlab('time') #+
+  #scale_x_continuous(limits = c(0, 35))
+
+# plot -log(survival)
+ggplot(data = table_B2[-(1),]) + 
+  geom_line(aes(x = log(time), y = log(-log(survival)))) +
+  geom_point(aes(x = log(time), y = log(-log(survival))), size = 2, shape = 1) +
+  labs(title = 'Log Negative Log of Estimated Group B Survivor Function') +
+  ylab('log[-log(Survival Probability)]') + xlab('log(time)') #+
+  #scale_x_continuous(limits = c(0, 35))
+```  
+  
+  c. Fit a Weibull distribution to the survival data for each group separately. Provide parameter estimates for the Weibull distributions.  
+    Fitting a Weibull regression model to the groups individually results in the following parameters.  
+    Group A:  
+      alpha: 1/0.176 == 5.69  
+      lambda: exp(-B0/ sigma) = 3.11e-14  
+    Group B:  
+      alpha: 1.0/0.224 == 4.46  
+      lambda: 1.39e-11  
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+fit_A <- survreg(formula = Surv(time, status) ~ 1,
+                data = df_A, dist = 'weibull')
+summary(fit_A)
+
+
+fit_B <- survreg(formula = Surv(time, status) ~ 1,
+                data = df_B, dist = 'weibull')
+summary(fit_B)
+
+```
+  
+  d. Plot the estimated survival curves from (a) and (c) in the same plot. Now access again if Weibull distribution is a good fit to the data.   
+    Upon reviewing the overlay of each groups' estimated survival functions it can be seen that the Weibull regression model is a good fit for both groups.    
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+pct = seq(0.01, 0.99, by=0.01)
+weib_pred_A = predict(fit_A, type = "quantile", p = pct, newdata=data.frame(1))
+
+df_plot_A = data.frame(surv=weib_pred_A, pct = 1-pct)
+
+#ggplot(data = df_plot_A) + 
+#  geom_line(aes(x = surv, y = pct)) +
+#  theme_minimal() + 
+#  labs(
+#    title = "Weibull Regression Model for Group A"
+#  )
+
+
+weib_pred_B = predict(fit_B, type = "quantile", p = pct, newdata=data.frame(1))
+
+df_plot_B = data.frame(surv=weib_pred_B, pct = 1-pct)
+
+#ggplot(data = df_plot_B) + 
+#  geom_line(aes(x = surv, y = pct)) +
+#  theme_minimal() + 
+#  labs(
+#    title = "Weibull Regression Model for Group B"
+#  )
+
+ggplotA = ggsurvplot(fit = fit1, data = df_A, conf.int = TRUE)$plot
+ggplotA +
+#  ggplotB +
+  geom_line(aes(x = surv, y = pct), data=df_plot_A, color = "blue", linetype="dashed") +
+  theme_minimal() + 
+  labs(
+    title = "Kaplan-Meier estimator and Weibull Regression Model for Group A"
+  )
+
+ggplotB = ggsurvplot(fit = fit2, data = df_B, conf.int = TRUE)$plot
+ggplotB +
+  geom_line(aes(x = surv, y = pct), data=df_plot_B, color = "blue", linetype="dashed") +
+  theme_minimal() + 
+  labs(
+    title = "Kaplan-Meier Estimator and Weibull Regression Model for Group B"
+  )
+
+```
+  
 1. Let us consider...
     a. Form a 2x2 table and record the entries for each event time.  
         
