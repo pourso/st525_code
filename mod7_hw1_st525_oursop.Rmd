@@ -1,0 +1,349 @@
+---
+title: "mod7_hw1_st525_oursop"
+author: "Philip Ourso"
+date: "11/14/2021"
+output:
+  html_document:
+    df_print: paged
+  pdf_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+```
+
+```{r, echo=F, message=F, warning=F}
+library(colorspace)
+library(directlabels)
+library(hexbin)
+library(km.ci)
+library(RColorBrewer)
+library(survival)
+library(survminer)
+library(tidyverse)
+library(tidytext)
+library(vtable)
+
+```
+## Module 7 HW1
+  
+1. A randomized clinical trial studies survival times...  
+  a. Use the Kaplan-Meier method to estimate the survival functions for the two groups separately, and plot two Kaplan-Meier curves in the same figure.  
+    The KM estimator survival functions are plotted below.  
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+df_1 = data.frame(
+  time = c(c(10, 10, 12, 12, 13, 14, 17, 20, 26, 34, 35, 37, 38, 39, 40, 40), 
+           c(7, 9, 9, 10, 11, 11, 13, 14, 14, 15, 16, 17, 19, 21, 22, 27)),
+  status = c(rep(1,1), rep(0,1), rep(1,1), rep(0,1), rep(1,2), rep(0,1), rep(1,2), rep(0,1), rep(1,5), rep(0,1), rep(1,2), rep(0,1), rep(1,2), rep(0,1), rep(1,2), rep(0,1), rep(1,4), rep(0,1), rep(1,1), rep(0,1)),
+  group = c(rep(0,16), rep(1,16)))
+
+#head(df_1)
+
+df_A = df_1 %>%
+  filter(group == 0 )
+
+fit1 <- survfit(Surv(time, status) ~ 1, data = df_A)
+ggsurvplot(fit = fit1, data = df_A, conf.int = TRUE) +
+  labs(
+    title="KM Estimator Survival Function for Treatment Group"
+  )
+
+df_B = df_1 %>%
+  filter(group == 1 )
+
+fit2 <- survfit(Surv(time, status) ~ 1, data = df_B)
+ggsurvplot(fit = fit2, data = df_B, conf.int = TRUE) +
+  labs(
+    title="KM Estimator Survival Function for Placebo Group"
+  )
+
+```  
+  
+  b. Now perform a log-rank test for treatment effect. Please report your test statistic and a p-value. Does the treatment have an effect on patient's survival, based on the log-rank test?  
+    The log-rank test produces a test statistic of 5.2 with a corresponding p-value of 0.02, providing strong evidence of a difference in survival times between the two groups and leading us to reject the null hypothesis.  
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+#fit_b <- survfit(Surv(time, status) ~ group, data = df_1)
+#ggsurvplot(fit = fit_b, data = df_1, conf.int = TRUE)
+logrank<-survdiff(Surv(time, status) ~ group, data = df_1)
+logrank
+```  
+  
+  c. Assume that the survival times for both groups follow exponential distribution, but with possibly different parameters. Test the hypothesis of no treatment effect using Wald test.  
+    The Wald test statistic is 1.5 with a p-value of 0.22, leading us to fail to reject the null hypothesis of no treatment effect. This is different from our log-rank test result.  
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+fit_c <- survreg(formula = Surv(time, status) ~ 
+                  group,
+                data = df_1, dist = 'exponential')
+summary(fit_c)
+```  
+  
+  d. Discuss the assumptions underlying these two approaches, and the reasons for the discrepancy between two testing procedures.  
+    The log-rank test is a non-parametric approach and makes no assumptions about the underlying distributions at work, instead assuming that if there were no differences between groups then events would happen proportionally over time. The test can suffer reduced power should the survival curves fail to exhibit proportional hazard rates, which doesn't appear to be the case here.  
+    The exponential regression model is both an accelerated failure time model and a proportional hazards model, assuming a log-linear model of survival time with survival times following an exponential distribution and hence the model's error term following a standard extreme value distribution. A constant hazard is when applying such models.  
+    If the survival times in fact follow a different distribution, or the log survival times are non-linear, then the exponential regression model would not be a good fit. 
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+fit_b <- survfit(Surv(time, status) ~ group, data = df_1)
+ggsurvplot(fit = fit_b, data = df_1, conf.int = TRUE)
+```
+
+1. Consider a two-group experiment...
+  a. Use the Kaplan-Meier method to estimate the survival functions for the two groups separately.  
+    The KM estimator survival functions are plotted below.  
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+df_1 = data.frame(
+  time = c(c(123, 166, 188, 188, 192, 192, 201, 209, 213, 216, 216, 219, 230, 234, 246, 265, 304, 226, 244, 266), 
+           c(142, 156, 163, 188, 215, 232, 232, 233, 233, 233, 236, 245, 261, 280, 280, 296, 299, 363, 204, 344)),
+  status = c(rep(1, 17), rep(0,3), rep(1, 18), rep(0,2)),
+  group = c(rep("A", 20), rep("B", 20))
+)
+#head(df_1)
+
+df_A = df_1 %>%
+  filter(group == "A" )
+
+fit1 <- survfit(Surv(time, status) ~ 1, data = df_A)
+ggsurvplot(fit = fit1, data = df_A, conf.int = TRUE) +
+  labs(
+    title="KM Estimator Survival Function for Group A"
+  )
+
+df_B = df_1 %>%
+  filter(group == "B" )
+
+fit2 <- survfit(Surv(time, status) ~ 1, data = df_B)
+ggsurvplot(fit = fit2, data = df_B, conf.int = TRUE) +
+  labs(
+    title="KM Estimator Survival Function for Group B"
+  )
+
+```  
+
+  b. Based on the Kaplan-Meier estimators, can Weibull distribution be a good fit to the survival data in either group? Please provide relevant graph to support your answer.    
+    The log-negative-log plots vs log time are plotted below for both groups. Group A's curve has a slight "S" shape and group B's curve has several small steps, so neither are obviously strictly linear, but group A might be better fit by a Weibull regression model.
+    
+```{r, echo=FALSE, warning=FALSE, message=FALSE}    
+table_A <- summary(fit1, times = c(0, unique(df_A$time)))
+
+table_A <- data.frame(
+  time = table_A$time, 
+  survival = table_A$surv, 
+  failure = 1-table_A$surv, 
+  Survival.Std.Err = table_A$std.err, 
+  No.Left = table_A$n.risk, 
+  No.Failed = table_A$n.event, 
+  No.Censored = table_A$n.censor
+  )
+
+#head(table_A, 25)
+# retain only rows w/ events observed
+table_A2 <- table_A[c(table_A$No.Failed > 0), ]
+table_A2 <- data.frame(rbind(table_A[1, ], table_A2))
+#head(table_A2, 25)
+
+# plot -log(survival)
+#ggplot(data = table_A2) + 
+#  geom_line(aes(x = time, y = -log(survival))) +
+#  geom_point(aes(x = time, y = -log(survival)), size = 2, shape = 1) +
+#  labs(title = 'Negative Log of Estimated Group A Survivor Function') +
+#  ylab('-log(Survival Probability)') + xlab('time') #+
+
+# plot -log(survival)
+ggplot(data = table_A2[-(1),]) + 
+  geom_line(aes(x = log(time), y = log(-log(survival)))) +
+  geom_point(aes(x = log(time), y = log(-log(survival))), size = 2, shape = 1) +
+  labs(title = 'Log Negative Log of Estimated Group A Survivor Function') +
+  ylab('log[-log(Survival Probability)]') + xlab('log(time)') #+
+
+#group B
+table_B <- summary(fit2, times = c(0, unique(df_B$time)))
+
+table_B <- data.frame(
+  time = table_B$time, 
+  survival = table_B$surv, 
+  failure = 1-table_B$surv, 
+  Survival.Std.Err = table_B$std.err, 
+  No.Left = table_B$n.risk, 
+  No.Failed = table_B$n.event, 
+  No.Censored = table_B$n.censor
+  )
+
+#head(table_A, 25)
+# retain only rows w/ events observed
+table_B2 <- table_B[c(table_B$No.Failed > 0), ]
+table_B2 <- data.frame(rbind(table_B[1, ], table_B2))
+#head(table_A2, 25)
+
+# plot -log(survival)
+#ggplot(data = table_B2) + 
+#  geom_line(aes(x = time, y = -log(survival))) +
+#  geom_point(aes(x = time, y = -log(survival)), size = 2, shape = 1) +
+#  labs(title = 'Negative Log of Estimated Group B Survivor Function') +
+#  ylab('-log(Survival Probability)') + xlab('time') #+
+  #scale_x_continuous(limits = c(0, 35))
+
+# plot -log(survival)
+ggplot(data = table_B2[-(1),]) + 
+  geom_line(aes(x = log(time), y = log(-log(survival)))) +
+  geom_point(aes(x = log(time), y = log(-log(survival))), size = 2, shape = 1) +
+  labs(title = 'Log Negative Log of Estimated Group B Survivor Function') +
+  ylab('log[-log(Survival Probability)]') + xlab('log(time)') #+
+  #scale_x_continuous(limits = c(0, 35))
+```  
+  
+  c. Fit a Weibull distribution to the survival data for each group separately. Provide parameter estimates for the Weibull distributions.  
+    Fitting a Weibull regression model to the groups individually results in the following parameters.  
+    Group A:  
+      alpha: 1/0.176 == 5.68  
+      lambda: exp(-B0/ sigma) = 3.11e-14  
+    Group B:  
+      alpha: 1.0/0.224 == 4.46  
+      lambda: 1.39e-11  
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+fit_A <- survreg(formula = Surv(time, status) ~ 1,
+                data = df_A, dist = 'weibull')
+summary(fit_A)
+
+
+fit_B <- survreg(formula = Surv(time, status) ~ 1,
+                data = df_B, dist = 'weibull')
+summary(fit_B)
+
+```
+  
+  d. Plot the estimated survival curves from (a) and (c) in the same plot. Now access again if Weibull distribution is a good fit to the data.   
+    Upon reviewing the overlay of each groups' estimated survival functions it can be seen that the Weibull regression model is a good fit for both groups.    
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+pct = seq(0.01, 0.99, by=0.01)
+weib_pred_A = predict(fit_A, type = "quantile", p = pct, newdata=data.frame(1))
+
+df_plot_A = data.frame(surv=weib_pred_A, pct = 1-pct)
+
+#ggplot(data = df_plot_A) + 
+#  geom_line(aes(x = surv, y = pct)) +
+#  theme_minimal() + 
+#  labs(
+#    title = "Weibull Regression Model for Group A"
+#  )
+
+
+weib_pred_B = predict(fit_B, type = "quantile", p = pct, newdata=data.frame(1))
+
+df_plot_B = data.frame(surv=weib_pred_B, pct = 1-pct)
+
+#ggplot(data = df_plot_B) + 
+#  geom_line(aes(x = surv, y = pct)) +
+#  theme_minimal() + 
+#  labs(
+#    title = "Weibull Regression Model for Group B"
+#  )
+
+ggplotA = ggsurvplot(fit = fit1, data = df_A, conf.int = TRUE)$plot
+ggplotA +
+#  ggplotB +
+  geom_line(aes(x = surv, y = pct), data=df_plot_A, color = "blue", linetype="dashed") +
+  theme_minimal() + 
+  labs(
+    title = "Kaplan-Meier estimator and Weibull Regression Model for Group A"
+  )
+
+ggplotB = ggsurvplot(fit = fit2, data = df_B, conf.int = TRUE)$plot
+ggplotB +
+  geom_line(aes(x = surv, y = pct), data=df_plot_B, color = "blue", linetype="dashed") +
+  theme_minimal() + 
+  labs(
+    title = "Kaplan-Meier Estimator and Weibull Regression Model for Group B"
+  )
+
+```
+  
+2.	Consider the pharmacoSmoking dataset...
+    a. Report the parameter estimation results for the Weibull regression.  
+      Fitting a Weibull regression model to the data results in the following parameter estimates, all coefficients found to be statistically significant except gender:  
+      scale: 1.44  
+      alpha: 1/ 1.44 == 0.694  
+      B0: 3.37  
+      gender: 0.488 (male gender)  
+      age: 0.03  
+      group: -0.8 (group 2 membership)  
+
+```{r, echo=FALSE, warning=FALSE, message=FALSE}
+df = read.csv("pharmacoSmoking-new.csv",
+              header = TRUE,
+              colClasses = c(rep(NA, 5), "factor", rep(NA, 4), "character", "character", NA, NA)
+              )
+df = df %>%
+  mutate( grp = factor(grp))
+
+df$admittime = df$admitdate %>%
+  as.Date(format = c("%m/%d/%Y"))
+
+df$ftime = df$fdate %>%
+  as.Date(format = c("%m/%d/%Y"))
+
+df$time = difftime(df$ftime, df$admittime, units = 'days') %>%
+  as.numeric() 
+
+df = df[df$time>0,]
+#dim(df)
+
+fit <- survreg(formula = Surv(time, relapse) ~ gender + age + grp,
+                data = df, dist = 'weibull')
+summary(fit)
+```
+  
+  b. Provide an interpretation for the regression coefficient of Age.  
+    The Age coefficient of 0.03 estimates that each unit increase in age (year) increases the time to relapse by e^(0.03) = 1.03, or ~3%.  
+  c. Provide an interpretation for the regression coefficient of Gender.  
+    Although not found to be statistically significant, the coefficient of Gender estimates that the mean time to relapse of males is e^(0.49) = 1.63 times that of females, or an increase in ~63%.  
+  d. Provide an interpretation for the regression coefficient of grp.  
+    The coefficient of grp estimates that a treatment of patch only results in a decrease in time to relapse of 1-e^(-0.8) = ~55%.  
+    
+3.	Failure times (in days) for 80...
+    a. Fit the data using a Weibull regression model with covariates: Group (as a class variable), DVAL, and FVAL. Report your parameter estimation results.     
+      All coefficients are considered statistically significant except DVAL.    
+      scale: 0.29  
+      alpha: 1/ 0.29 == 3.45  
+      B0: 5.01  
+      group: 0.267 (Green group)  
+      DVAL: -0.005  
+      FVAL: -0.008   
+    b. Do the failure times depend significantly on the group? On DVAL? On FVAL? Find the P-values for the variables that are significant.  
+      Group and FVAL appear to be statistically significant, with p-values of 0.0005 and 0.0063 respectively.  
+    c. If Group is significant, which group (Green or Blue) has the longer expected survival time? If DVAL or FVAL is significant, do larger values of that variable lead to longer survival times or shorter survival times? Explain.  
+      Green group membership has a longer survival time; with a positive coefficient of 0.267, members of Green group are estimated to have e^0.267 == 1.306 times the survival time of Blue group members, or ~31% longer.  
+      Larger values of FVAL are estimated to result in shorter survival times, due to the negative coefficient, although only decreasing by roughly 0.8%.  
+    d. Now fit the data using an Exponential regression model with same covariates: Group, DVAL and FVAL. Report your parameter estimation results.  
+      No coefficients are considered statistically significant.    
+      scale: 1 (by definition)  
+      alpha: 1/ 1 == 1  
+      B0: 4.97  
+      group: 0.252 (Green group)  
+      DVAL: -0.003  
+      FVAL: -0.008
+    e. Do the failure times depend significantly on the group? On DVAL? On FVAL? Find the p-values for the variables that are significant.  
+      No variables are found to be significant.  
+    f. Are any of your conclusions different? In particular, does assuming exponential instead of Weibull distribution increase the significance of the covariates, decrease the significances, or leave them about the same?  
+      Assuming exponential distribution reduces the significance of the covariates.  
+    g. Compare Weibull regression model with Exponential model, which one fits the data better? Please perform a hypothesis testing that the failure times follow Exponential distribution with the alternative of a Weibull distribution. Report your P-value and discuss your conclusion.  
+      The likelihood ratio stat is 2 * (-316.8 - -362.4 ) == 91.2. The p-value from a Chi-square distribution with 1 d.f. is 0, leading us to reject the null hypothesis of a true reduced model. The Weibull regression model is preferred.     
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+df_3 = read.csv("hw6_q3.csv")
+
+#reverse logic -> 0 means censored
+df_3$censored = ifelse(df_3$status==0, 1, 0)
+#head(df_3)
+
+fit_3 <- survreg(formula = Surv(time, censored) ~ group + DVAL + FVAL,
+                data = df_3, dist = 'weibull')
+summary(fit_3)
+
+fit_3e <- survreg(formula = Surv(time, censored) ~ group + DVAL + FVAL,
+                data = df_3, dist = 'exponential')
+summary(fit_3e)
+
+```
+    
+### Appendix: R code
+```{r ref.label=knitr::all_labels(), echo = T, eval = F}
+```
