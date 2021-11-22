@@ -32,9 +32,10 @@ library(vtable)
   a. Write out the formula for the Cox PH model.  
     h(t|Z) = h~0~(t)exp(Z^T^B)  
   b. Write out the partial likelihood function as a function of the regression coefficient.  
-    PL(B) = exp(2.28B) / [exp(2.6B) + exp(2.85B) + exp(2.74B) + exp(2.34B) + exp(3.05B)] +  
-    exp(2.85B) / [exp(2.74B) + exp(2.34B) + exp(3.05B)] +  
-    exp(2.74B) / [exp(2.34B) + exp(3.05B)] +  
+    PL(B) =  
+    exp(2.28B) / [exp(2.28B) + exp(2.6B) + exp(2.85B) + exp(2.74B) + exp(2.34B) + exp(3.05B)] +  
+    exp(2.85B) / [exp(2.85B) + exp(2.74B) + exp(2.34B) + exp(3.05B)] +  
+    exp(2.74B) / [exp(2.74B) + exp(2.34B) + exp(3.05B)] +  
     exp(3.05B) / [exp(3.05B)]  
   
 2. The US Veterans Administration...  
@@ -43,11 +44,11 @@ library(vtable)
   b. Write out the formula of the Cox PH model with all other variables except Type1.  
     h(t|Z) = h~0~(t)exp(B~Trt~Trt + B~Type2~Type2 + B~Type3~Type3 + B~Type4~Type4 + B~Karno~Karno + B~Diagtime~Diagtime + B~Age~Age + B~Prior~Prior  )  
   c. What are the key assumptions assumed in the Cox PH model in (b)?  
-    The key assumption is that the baseline hazard rate is common to all patients and that the covariates' effect on hazard rate doesn't vary with time.  
+    The key assumption is that the baseline hazard rate is common to all patients and that the covariates' effects on hazard rate don't vary with time.  
   d. Do survival times depend significantly on any of the covariates in the model?  
     P-values for the covariates Trt, Diagtime, Prior therapy, Type2 and Type4 are all significant at a significance level of 0.05.  
   e. Do patients in standard chemotherapy have longer than expected survival time compared with patients in test chemotherapy? Explain.  
-    The estimated coefficient for Trt is > 0, and hence the relative hazard rate is higher for patients in test chemotherapy. exp(1.0672) = 2.91, so the hazard rate of a patient with standard chemotherapy is 2.91 times the hazard rate of a patient with test chemotherapy, hence the survival time is lower for a patient with standard chemotherapy.  
+    The estimated coefficient for Trt is > 0, and hence the relative hazard rate is higher for patients in standard chemotherapy. exp(1.0672) = 2.91, so the hazard rate of a patient with standard chemotherapy is 2.91 times the hazard rate of a patient with test chemotherapy, hence the survival time is lower for a patient with standard chemotherapy.  
   f. Do patients with small cell type have longer expected survival time compared to those with squamous type? Explain.  
     The estimated coefficient for Type2 is 0.668, so patients with small cell type have 1.95 times the hazard rate relative to patients with squamous cell type and hence shorter expected survival time.  
   g. Give an interpretation of the coefficients of Type2.  
@@ -82,7 +83,7 @@ ggsurvplot(coxph_fit3_b, data = group, conf.int = FALSE)
   c. Compare your plots in (a) and (b). What can you say about the proportional hazard assumption in the Cox model?  
     Given the similarity in plots between the KM estimator and the Cox Proportional Hazards model I'd say that the assumption of proportional hazards is reasonable.  
   d. Consider a Cox proportional hazard model with only Race as covariate. What is the MPLE of the hazard ratio comparing "blacks" to "Hispanics" and interpret the regression coefficient of Race.  
-    The MPLE coefficient of Black with respect to Hispanic is -0.4159, for a hazard rate ratio of 0.66. In other words, a black patient's hazard rate is always 66% that of a hispanic patients.  
+    The MPLE coefficient of Black with respect to Hispanic is -0.4159, for a hazard rate ratio of 0.66. In other words, a black patient's hazard rate is always 66% that of a hispanic patient.  
 ```{r, echo=FALSE, message=FALSE, warning=FALSE}
 colnames(df_3)[10]="race"
 df_3$race_re<-factor(df_3$race,level=c(3,2,1,4,5))
@@ -124,7 +125,8 @@ group_f <- data.frame(treat=c(1,0), cd4 = c(86,20), sex = c(2,2),
 coxph_fit3_e <- survfit(fit3_e, newdata = group_f)
 #plot(survfit(fit3_b))
 ggsurvplot(coxph_fit3_e, data = group, conf.int = FALSE)
-```  
+```
+
   
 ### Appendix: R code
 ```{r ref.label=knitr::all_labels(), echo = T, eval = F}
