@@ -41,7 +41,7 @@ library(vtable)
   b. Give an interpretation of the coefficient for NODES*CYCLINE.  
     There is an interaction term included for individuals in which CYCLINE protein is abnormal and cancer has spread to lymph nodes. For these individuals, the hazard rate is ~23% lower with respect to the baseline, all other things equal.  
     While this is somewhat counter-intuitive, given the positive coefficients for CYCLINE and NODES, had this been found to be statistically significant it could operate as a corrective term for individuals that would have higher hazard rates due to the effect of CYCLINE and NODES covariates.   
-  c. What test statistics would you use to determine if the interaction terms NODES*P27 and Nodes*CYCLINE are significant? What is its value, and how many degrees of freedom are associated with this statistic? What are your conclusions?  
+  c. What test statistics would you use to determine if the interaction terms NODES * P27 and Nodes * CYCLINE are significant? What is its value, and how many degrees of freedom are associated with this statistic? What are your conclusions?  
     The Wald test statistic can be used to check for individual covariate's statistical significance. The values for the two interaction terms are 0.003 and 0.314, respectively. There is 1 degree of freedom associated with the chi-square distribution of the Wald test statistic. Neither are found to be statistically significant.  
   d. If the 5-year survival probability for a woman...?  
     The woman with abnormal P27 and CYCLINE measurements would have a hazard rate over 7 times that of the baseline, all other covariates equal. The estimated 5-year survival probability would be:  
@@ -53,6 +53,116 @@ library(vtable)
     At a significance level of 0.05, we fail to reject the null hypothesis of a simpler model and retain model 1.  
   f. For Model 1, describe what kinds of plots you could use to access the proportional hazard assumption for P27.  
     To assess the assumption of proportional hazards for the effect of the P27 covariate, the Schoenfeld residuals could be calculated for each event time and plotted against event times. Assuming no obvious patterns, it could be concluded that the assumption of proportional hazards is a safe one.  
+  
+3. Consider the Rossi data...  
+  a. Fit a full Cox PH model with the following covariates: fin, age, wexp, mar, paro, prio, educ. Plot the martingale residuals against each continuous predictor.  Is the linear form of these predictors appropriate?  
+    Although the confidence interval of the LOWESS curve mostly include 0 for its entirety, there does appear to be some non-linear behavior. Including quadratic terms for AGE and PRIO should be considered.  
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+# copied from Lab 9
+smoothSEcurve <- function(yy, xx) {
+  # use after a call to "plot"
+  # fit a lowess curve and 95% confidence interval curve
+  # make list of x values
+  xx.list <- min(xx) + ((0:100)/100)*(max(xx) - min(xx))
+  # Then fit loess function through the points (xx, yy)
+  # at the listed values
+  yy.xx <- predict(loess(yy ~ xx), se=T,
+  newdata=data.frame(xx=xx.list))
+  lines(yy.xx$fit ~ xx.list, lwd=2,col=2)
+  lines(yy.xx$fit -
+  qt(0.975, yy.xx$df)*yy.xx$se.fit ~ xx.list, lty=2,col=3)
+  lines(yy.xx$fit +
+  qt(0.975, yy.xx$df)*yy.xx$se.fit ~ xx.list, lty=2,col=3)
+}
+``` 
+  
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+df_3 = read.csv("Rossi.csv")
+df_3$fin = factor(df_3$fin)
+df_3$wexp = factor(df_3$wexp)
+df_3$mar = factor(df_3$mar)
+df_3$paro = factor(df_3$paro)
+
+# full model
+fit_3a <- coxph(formula = Surv(week, arrest)~fin + age + wexp + mar + paro + prio + educ, 
+                data = df_3)
+df_3$res_mar <- residuals(fit_3a, type = 'martingale')
+
+df_3$linear.predictors <- fit_3a$linear.predictors
+ggplot(data = df_3) + 
+  geom_point(aes(x = linear.predictors, y = res_mar, color = factor(arrest))) + 
+  ylab('Martingale Residual') + 
+  labs(color='fstat')
+
+# fit null model
+fit_3a_null = coxph(formula = Surv(week, arrest)~1, 
+                data = df_3)
+fit_3a_null_res_mar = residuals(fit_3a_null, type='martingale')
+
+# plot martingale residuals against continuous predictors
+par(mfrow=c(2,1))
+plot(df_3$age, fit_3a_null_res_mar)
+smoothSEcurve(fit_3a_null_res_mar, df_3$age)
+title(" Age")
+plot(df_3$prio, fit_3a_null_res_mar)
+smoothSEcurve(fit_3a_null_res_mar, df_3$prio)
+title(" Prio")
+
+```  
+  
+  b. Now verify if the proportional hazard assumption is appropriate for this data set. Please provide appropriate plots and interpretation of the plot.  
+    Reviewing the plots of the Schoenfeld residuals below it can be seen that the assumption of proportional hazards is reasonable for most predictors, excepting perhaps FIN2 and WEXP2.  
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+fit_3a_res_sch= residuals(fit_3a, type='schoenfeld')
+arrest_times = df_3$week[df_3$arrest==1]
+
+par(mfrow=c(1,2))
+plot(arrest_times, fit_3a_res_sch[,1])
+smoothSEcurve(fit_3a_res_sch[,1], arrest_times)
+abline(h=0, col="blue")
+title("FIN2")
+
+plot(arrest_times, fit_3a_res_sch[,2])
+smoothSEcurve(fit_3a_res_sch[,2], arrest_times)
+abline(h=0, col="blue")
+title("AGE")
+
+par(mfrow=c(1,2))
+plot(arrest_times, fit_3a_res_sch[,3])
+smoothSEcurve(fit_3a_res_sch[,3], arrest_times)
+abline(h=0, col="blue")
+title("WEXP2")
+
+plot(arrest_times, fit_3a_res_sch[,4])
+smoothSEcurve(fit_3a_res_sch[,4], arrest_times)
+abline(h=0, col="blue")
+title("MAR2")
+
+par(mfrow=c(1,2))
+plot(arrest_times, fit_3a_res_sch[,5])
+smoothSEcurve(fit_3a_res_sch[,5], arrest_times)
+abline(h=0, col="blue")
+title("PARO2")
+
+plot(arrest_times, fit_3a_res_sch[,6])
+smoothSEcurve(fit_3a_res_sch[,6], arrest_times)
+abline(h=0, col="blue")
+title("PRIO")
+
+par(mfrow=c(1,2))
+plot(arrest_times, fit_3a_res_sch[,7])
+smoothSEcurve(fit_3a_res_sch[,7], arrest_times)
+abline(h=0, col="blue")
+title("EDUC")
+
+#head(fit_3a_res_sch)
+```  
+  
+  c. Consider a Cox PH model with only significant covariates. Conduct a likelihood ratio test to decide whether to keep the reduced model or the full model.  
+  
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+
+```  
   
 1. Suppose we have the following survival data...  
   a. Write out the formula for the Cox PH model.  
