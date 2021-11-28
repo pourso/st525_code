@@ -29,14 +29,15 @@ library(vtable)
 ## Module 9 HW1
   
 1. Please briefly explain what is the meaning of the term proportional hazard? And how can we check whether the proportional hazard assumption is valid.  
-  The proportional hazards assumption is the specification of a model in which the ratio of hazard rates between any two individuals is assumed to be time-invariant; the effect of covariates upon individuals is multiplicative and doesn't change with time.  
-  This assumption can be tested via hypothesis tests and residual examination. An interaction term between a covariate and time can be created and a null hypothesis of a zero-valued coefficient could then be tested to demonstrate that covariate's effect doesn't vary with time. This could be done for all covariates in the model.  
-  Alternatively, Schoenfeld residuals could be calculated and plotted against event times. Assuming no obvious patterns could be observed, it would be safe to make the assumption of proportional hazards.  
+  The proportional hazards assumption is the specification of a model in which the ratio of hazard rates between any two individuals is assumed to be time-invariant; the effect of covariates upon individuals doesn't change with time.  
+  This assumption can be tested via hypothesis tests and residuals examination. An interaction term between a covariate and time can be created and a null hypothesis of a zero-valued coefficient could then be tested to demonstrate that covariate's effect doesn't vary with time. This could be done for all covariates in the model.  
+  Alternatively, Schoenfeld residuals could be calculated and plotted against event times. Assuming no obvious patterns could be observed, it would be safe to make the assumption of proportional hazard.  
   
 2. Consider a study on young breast cancer patients...  
   a. Write out the formula for the Cox regression model for Model 1 and Model 2 respectively.  
-    Model 1: h(t|Z) = h~0~(t)exp(1.067x~P27~ + 0.726x~CYC~ + 1.204x~NOD~ + 0.668x~SZ2~ + 0.902x~SZ3~ )  
-    Model 2: h(t|Z) = h~0~(t)exp(1.088x~P27~ + 0.896x~CYC~ + 1.357x~NOD~ + 0.664x~SZ2~ + 0.867x~SZ3~ )  
+    Including all terms (not just those found to be statistically significant):  
+    Model 1: h(t|Z) = h~0~(t)exp(1.067x~P27~ + 0.726x~CYC~ + 1.204x~NOD~ + 0.668x~SZ2~ + 0.902x~SZ3~ + -0.12x~AGE~ + 0.198x~YEAR~ )  
+    Model 2: h(t|Z) = h~0~(t)exp(1.088x~P27~ + 0.896x~CYC~ + 1.357x~NOD~ + 0.664x~SZ2~ + 0.867x~SZ3~ + -0.125x~AGE~ + 0.198x~YEAR~ + -0.027x~NODES~x~P27~ + -0.259x~NODES~x~CYCLINE~ )  
   
   b. Give an interpretation of the coefficient for NODES*CYCLINE.  
     There is an interaction term included for individuals in which CYCLINE protein is abnormal and cancer has spread to lymph nodes. For these individuals, the hazard rate is ~23% lower with respect to the baseline, all other things equal.  
@@ -52,7 +53,7 @@ library(vtable)
     1 - pchisq(0.313, 2) = 0.855  
     At a significance level of 0.05, we fail to reject the null hypothesis of a simpler model and retain model 1.  
   f. For Model 1, describe what kinds of plots you could use to access the proportional hazard assumption for P27.  
-    To assess the assumption of proportional hazards for the effect of the P27 covariate, the Schoenfeld residuals could be calculated for each event time and plotted against event times. Assuming no obvious patterns, it could be concluded that the assumption of proportional hazards is a safe one.  
+    To assess the assumption of proportional hazard for the effect of the P27 covariate, the Schoenfeld residuals could be calculated for each event time and plotted against event times. Assuming no obvious patterns, it could be concluded that the assumption of proportional hazard is a safe one.  
   
 3. Consider the Rossi data...  
   a. Fit a full Cox PH model with the following covariates: fin, age, wexp, mar, paro, prio, educ. Plot the martingale residuals against each continuous predictor.  Is the linear form of these predictors appropriate?  
@@ -89,10 +90,10 @@ fit_3a <- coxph(formula = Surv(week, arrest)~fin + age + wexp + mar + paro + pri
 df_3$res_mar <- residuals(fit_3a, type = 'martingale')
 
 df_3$linear.predictors <- fit_3a$linear.predictors
-ggplot(data = df_3) + 
-  geom_point(aes(x = linear.predictors, y = res_mar, color = factor(arrest))) + 
-  ylab('Martingale Residual') + 
-  labs(color='fstat')
+#ggplot(data = df_3) + 
+#  geom_point(aes(x = linear.predictors, y = res_mar, color = factor(arrest))) + 
+#  ylab('Martingale Residual') + 
+#  labs(color='fstat')
 
 # fit null model
 fit_3a_null = coxph(formula = Surv(week, arrest)~1, 
@@ -159,111 +160,28 @@ title("EDUC")
 ```  
   
   c. Consider a Cox PH model with only significant covariates. Conduct a likelihood ratio test to decide whether to keep the reduced model or the full model.  
-  
+    The log likelihood ratio test statistic is 8.31 with 5 degrees of freedom, resulting in a p-value of 0.14. We fail to reject the null hypothesis of a simpler model and retain the reduced model.  
 ```{r, echo=FALSE, message=FALSE, warning=FALSE}
+summary(fit_3a)
 
+#df_3$age2 = df_3$age^2
+#df_3$prio2 = df_3$prio^2
+#fit_3a_quad = coxph(formula = Surv(week, arrest)~fin + age + age2 + wexp + mar + paro + prio + prio2 + educ, 
+#                data = df_3)
+#summary(fit_3a_quad)
+
+fit_3c = coxph(formula = Surv(week, arrest)~ age + prio, 
+                data = df_3)
+summary(fit_3c)
+
+1-pchisq(2*(fit_3a$loglik[2] - fit_3c$loglik[2]),5)
 ```  
   
-1. Suppose we have the following survival data...  
-  a. Write out the formula for the Cox PH model.  
-    h(t|Z) = h~0~(t)exp(Z^T^B)  
-  b. Write out the partial likelihood function as a function of the regression coefficient.  
-    PL(B) =  
-    exp(2.28B) / [exp(2.28B) + exp(2.6B) + exp(2.85B) + exp(2.74B) + exp(2.34B) + exp(3.05B)] +  
-    exp(2.85B) / [exp(2.85B) + exp(2.74B) + exp(2.34B) + exp(3.05B)] +  
-    exp(2.74B) / [exp(2.74B) + exp(2.34B) + exp(3.05B)] +  
-    exp(3.05B) / [exp(3.05B)]  
+  d. Use your selected model to interpret the effects of significant covariates.  
+    Referring to the reduced model that retains only significant covariates, the AGE coefficient is estimated as -0.069, resulting in a 6.7% decrease in hazard rate relative to the baseline for each year increase in age.  
+    The PRIO coefficient is estimated as 0.095, resulting in ~10% increase in hazard rate with each additional prior arrest.  
   
-2. The US Veterans Administration...  
-  a. Consider a Cox PH model using the covariates in the data. Can four covariates Type1, Type2, Type3, Type4 all be included in the model? Explain.  
-  Three of the four covariates could be included in the model; membership in the fourth group would serve as a baseline hazard rate. Coefficient values of the three group covariates would be relative to the hazard rate of this fourth baseline group.  
-  b. Write out the formula of the Cox PH model with all other variables except Type1.  
-    h(t|Z) = h~0~(t)exp(B~Trt~Trt + B~Type2~Type2 + B~Type3~Type3 + B~Type4~Type4 + B~Karno~Karno + B~Diagtime~Diagtime + B~Age~Age + B~Prior~Prior  )  
-  c. What are the key assumptions assumed in the Cox PH model in (b)?  
-    The key assumption is that the baseline hazard rate is common to all patients and that the covariates' effects on hazard rate don't vary with time.  
-  d. Do survival times depend significantly on any of the covariates in the model?  
-    P-values for the covariates Trt, Diagtime, Prior therapy, Type2 and Type4 are all significant at a significance level of 0.05.  
-  e. Do patients in standard chemotherapy have longer than expected survival time compared with patients in test chemotherapy? Explain.  
-    The estimated coefficient for Trt is > 0, and hence the relative hazard rate is higher for patients in standard chemotherapy. exp(1.0672) = 2.91, so the hazard rate of a patient with standard chemotherapy is 2.91 times the hazard rate of a patient with test chemotherapy, hence the survival time is lower for a patient with standard chemotherapy.  
-  f. Do patients with small cell type have longer expected survival time compared to those with squamous type? Explain.  
-    The estimated coefficient for Type2 is 0.668, so patients with small cell type have 1.95 times the hazard rate relative to patients with squamous cell type and hence shorter expected survival time.  
-  g. Give an interpretation of the coefficients of Type2.  
-    The estimated coefficient for Type2 is 0.668, so patients with small cell type have 1.95 times the hazard rate relative to patients with squamous cell type, all other covariates being equal.  
-  h. Give an interpretation of the coefficients of Diagtime.  
-    For a 1 month increase in time from diagnosis to enrollment in study there is a exp(0.7256) == 2.07 times increase in the hazard rate relative to the baseline hazard rate.  
-    
-3. The AIDS data on Canvas...  
-  a. For two groups (IDV versus control) separately, plot the Kaplan-Meier estimator of the survival functions.  
-  
-```{r, echo=FALSE, message=FALSE, warning=FALSE}
-df_3 = read.csv("AIDS.txt", header=FALSE, sep="")
-colnames(df_3)[2]="time"
-colnames(df_3)[3]="status"
-colnames(df_3)[6]="treat"
 
-fit3_a <- survfit(Surv(time, status) ~ treat, data = df_3)
-ggsurvplot(fit = fit3_a, data = df_3, conf.int = FALSE)
-#head(df_3,20)
-```  
-  
-  b. Consider a Cox proportional hazard model with only treatment as the covariate and plot the estimated survival functions for two groups (IDV versus control) separately.  
-    
-```{r, echo=FALSE, message=FALSE, warning=FALSE}
-fit3_b <- coxph(formula = Surv(time, status) ~ treat, data = df_3)
-group <- data.frame(treat=c(0,1),id=c(1,2))
-coxph_fit3_b <- survfit(fit3_b, newdata = group)
-#plot(survfit(fit3_b))
-ggsurvplot(coxph_fit3_b, data = group, conf.int = FALSE)
-```
-  
-  c. Compare your plots in (a) and (b). What can you say about the proportional hazard assumption in the Cox model?  
-    Given the similarity in plots between the KM estimator and the Cox Proportional Hazards model I'd say that the assumption of proportional hazards is reasonable.  
-  d. Consider a Cox proportional hazard model with only Race as covariate. What is the MPLE of the hazard ratio comparing "blacks" to "Hispanics" and interpret the regression coefficient of Race.  
-    The MPLE coefficient of Black with respect to Hispanic is -0.4159, for a hazard rate ratio of 0.66. In other words, a black patient's hazard rate is always 66% that of a hispanic patient.  
-```{r, echo=FALSE, message=FALSE, warning=FALSE}
-colnames(df_3)[10]="race"
-df_3$race_re<-factor(df_3$race,level=c(3,2,1,4,5))
-fit3_d <- coxph(formula = Surv(time, status) ~ race_re, data = df_3)
-summary(fit3_d)
-```  
-  
-  e. Consider a Cox PH model with covariates: treatment, CD4 count, sex, IV drug use, Hamophiliac, Karnofsky score, months of prior use of ZDV, age at enrollment.  Do any of those covariates have a significant effect on the survival? Provide interpretations of the significant regression coefficients.  
-    At a significance level of 0.05, treatment, cd4 count, Karnofsky score and age at enrollment all exhibit statistical significance.  
-    Patients with IDV treatment are estimated to have a hazard rate ~49% lower than the control.  
-    For a 1 unit increase in CD4 count, the hazard rate is ~1.5% lower.  
-    For a 1 unit increase in Karnofsky score, the hazard rate is ~5.5% lower.  
-    For a 1 year increase in age at enrollment, the hazard rate is ~2.3% higher.  
-  
-```{r, echo=FALSE, message=FALSE, warning=FALSE}
-colnames(df_3)[9]="sex"
-colnames(df_3)[11]="iv"
-colnames(df_3)[12]="hamo"
-colnames(df_3)[13]="karno"
-colnames(df_3)[14]="cd4"
-colnames(df_3)[15]="zdv"
-colnames(df_3)[16]="age"
-
-fit3_e <- coxph(formula = Surv(time, status) ~ treat + cd4 + sex + iv + hamo + karno + zdv + age, data = df_3)
-summary(fit3_e)
-
-#df_3$sex_re<-factor(df_3$sex,level=c(1,2))
-#fit3_e_re <- coxph(formula = Surv(time, status) ~ treat + cd4 + sex_re + iv + hamo + karno + zdv + age, data = df_3)
-#summary(fit3_e_re)
-
-```    
-  
-  f. Plot the estimated survival curves for the following two patients.  
-  
-```{r, echo=FALSE, message=FALSE, warning=FALSE}
-group_f <- data.frame(treat=c(1,0), cd4 = c(86,20), sex = c(2,2), 
-                    iv = c(1,2), hamo = c(0,1), karno = c(90,70), 
-                    zdv = c(30,250), age = c(38, 25),  id=c(1,2))
-coxph_fit3_e <- survfit(fit3_e, newdata = group_f)
-#plot(survfit(fit3_b))
-ggsurvplot(coxph_fit3_e, data = group, conf.int = FALSE)
-```
-
-  
 ### Appendix: R code
 ```{r ref.label=knitr::all_labels(), echo = T, eval = F}
 ```
