@@ -1,0 +1,459 @@
+---
+title: "mod10_final_st525_oursop"
+author: "Philip Ourso"
+date: "12/4/2021"
+output:
+  html_document:
+    df_print: paged
+  pdf_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+```
+
+```{r, echo=F, message=F, warning=F}
+library(colorspace)
+library(directlabels)
+library(GGally)
+library(ggfortify)
+library(hexbin)
+library(km.ci)
+library(My.stepwise)
+library(RColorBrewer)
+library(reshape2)
+library(survival)
+library(survminer)
+library(tidyverse)
+library(tidytext)
+library(vcd)
+library(vtable)
+
+```
+
+# ST525 Final Project: PCB3 Survival Data Analysis  
+    
+  Will Morath  
+  Chelsea Nayan  
+  Philip Ourso  
+  
+\newpage  
+
+## Introduction  
+  
+  The data provided with the project description, Pbc3.txt, was used for the survival data analysis.  
+  To briefly recap the information provided in the project description, the data came from a randomized clinical trial conducted in six European hospitals, between 1/1/83 and 1/1/87. The intent was to study treatment effect on survival time, with roughly half of the 349 patients receiving Cyclosporin A and the remainder receiving placebo. However, a significant number of patients received a liver transplant and hence survival time was redefined as time to death or liver transplant. Exact quantities are provided in the table below.  
+  
+    |            | CyA  | Placebo | Total |    
+    ---------------------------------------  
+    | Patients   | 176  | 173     | 349   |  
+    | Death      |  30  |  31     |  61   |  
+    | Transplant |  14  |  15     |  29   |    
+    | Drop-out   |      |         |   4   |  
+  
+  
+## Methods and Results  
+  
+  Provided data was encoded in the following form:  
+  •	ptno: patient identification  
+  •	unit: hospital (1: Hvidovre 2: London 3: Copenhagen 4: Barcelona 5: Munich 6: Lyon) 
+  •	tment: treatment (0: placebo, 1: CyA)  
+  •	sex: (1: males, 0: females)  
+  •	age: years  
+  •	stage: histological stage (1, 2, 3, 4)  
+  •	gibleed: previous gastrointestinal bleeding (1: yes, 0: no)  
+  •	crea creatinine (micromoles/L)  
+  •	alb: albumin (g/L)  
+  •	bili: bilirubin (micromoles/L)  
+  •	alkph: alkaline phosphatase (IU/L)  
+  •	asptr: aspartate transaminase (IU/L)  
+  •	weight: body weight (kg)  
+  •	days: observation time (days)  
+  •	status: status at exit (0: censored, 1: liver transplantation, 2 : dead)  
+  
+  Categorical features encoded as integers were converted to factors and a new censoring status variable was created, combining death and transplant values into a single value. Missing data was imputed with the according to the following heuristic: missing numerical data was set to the median value while the sole categorical feature exhibiting missing values, stage, had missing observations collected into a new value of 0.        
+  
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+# read and inspect data
+df = read.csv("Pbc3.txt", sep = "\t")
+head(df)
+
+# combine events
+df['agg_status'] = ifelse(df$status==0,0,1)
+df_imp = df
+
+# recode categorical variables
+cat_cols = c('unit', 'tment', 'sex', 'stage', 'gibleed')
+df[,cat_cols] = sapply(df[,cat_cols], function(x) as.factor(x))
+
+# check NAs
+#sapply(df, function(x) sum(is.na(x)))
+df_imp$stage = ifelse(is.na(df_imp$stage), 0, df_imp$stage)
+
+na_cols = c('crea', 'alb', 'asptr', 'weight')
+df_imp[,na_cols] = lapply(df_imp[,na_cols], function(x) replace(x, is.na(x), median(x, na.rm = TRUE)))
+
+```  
+  
+### Variable distributions  
+  
+  Variable distributions were reviewed next. Numerical features are displayed below as density plots; the original, unimputed data is displayed. As can be seen, with the exception of perhaps albumin ("alb"), the variables are generally not normal and exhibit strong skew. Patients receiving a transplant tended to be younger, while those dying tended to be older, although both populations are small compared to the censored individuals. There doesn't appear to be strong collinearity between numerical features.    
+  
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+# review distributions
+num_cols = c('age', 'crea', 'alb', 'bili', 'alkph', 'asptr', 'weight', 'days')
+melt.df = melt(df[, num_cols])
+
+summary(df[, num_cols])
+
+ggplot(melt.df, aes(x=value)) +
+  geom_density() +
+  theme_minimal() +
+  facet_wrap(~variable, scales = "free")
+```
+  
+  
+```{r, echo=FALSE, message=FALSE, warning=FALSE, fig.width=10, fig.asp=1}
+df['status_cat'] = as.factor(df$status)
+
+#https://stackoverflow.com/questions/34727408/edit-individual-ggplots-in-ggallyggpairs-how-do-i-have-the-density-plot-not-f
+ggally_mysmooth <- function(data, mapping, ...){
+  ggplot(data = data, mapping=mapping) +
+    geom_density(mapping = aes_string(color="status_cat"), fill=NA)
+}
+
+ggpairs(df[,c(num_cols, 'status_cat')], 
+        aes(color=status_cat), 
+        diag = list(continuous = ggally_mysmooth),
+        alpha=0.4)
+```  
+  
+  Correlations between categorical variables can be viewed in mosaic plots and, as seen below, there are not many correlations. Of note, however, is that late stage individuals tend to dominate the death and transplant statuses. A fatal outcome also disproportionately affects males and individuals that exhibited gastrointestinal bleeding ("gibleed"). Curiously, the strongest categorical correlation is the association with previous gastrointestinal bleeding with the London hospital.  
+```{r, echo=FALSE, message=FALSE, warning=FALSE, fig.width=10, fig.asp=1}
+# review distributions
+df['status_cat'] = as.factor(df$status)
+#ggpairs(df[,c(cat_cols, 'status_cat')], aes(color=status_cat), alpha=0.5)
+
+pairs(table(df[,c(cat_cols, 'status_cat')]), 
+      diag_panel = pairs_diagonal_mosaic(offset_varnames=-2.5),    #move down variable names
+      upper_panel_args = list(shade = TRUE),                       #set shade colors
+      lower_panel_args = list(shade = TRUE))
+```  
+  
+### Kaplan-Meier estimate of survival function  
+  
+  The KM estimator of the survival function is displayed below. The treatment strata appears to exhibit slightly better survival probability in the short term, although it is generally within the confidence interval of the placebo group. As time progresses the survival functions appear equivalent.  
+  
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+fit_1 <- survfit(Surv(days, agg_status) ~ tment, data = df_imp)
+ggsurvplot(fit = fit_1, data = df_imp, conf.int = TRUE) +
+labs(
+  title="KM Estimator Survival Function"
+)
+```  
+  
+### Feature selection  
+  
+  A Cox Proportional Hazard model is chosen to model the hazard rate and stepwise variable selection is performed in order to determine the included features, with significance levels for entry and exit specified as 0.2 and 0.15 respectively. Six iterations were performed resulting in the below features. 
+  bili + alb + stage + sex + weight + tment + asptr + age  
+  
+  It should be noted that the R implementation of the stepwise selection process doesn't support factors, and so the stepwise selection process was repeated with indicator variables created for categorical variables with more than two levels ("unit", "stage"). Given more variables there were more iterations but the features selected largely matched that of the previous attempt.  
+  bili + alb + stage_4 + sex + weight + tment + stage_3 + stage_0 + asptr + age  
+  
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+vars = c("age","crea","alb","bili","alkph","asptr","weight","unit","sex","stage","gibleed","tment")
+
+#str(df_imp)
+# stepwise w/ integer categorical variables
+My.stepwise.coxph(Time='days', Status = 'agg_status',
+                  variable.list = vars,
+                  data=df_imp, sle=0.2, sls=0.15)
+
+# try again w/ multi-level factors specified as separate variables...
+df_imp['unit_1'] = ifelse(df_imp$unit==1, 1, 0)
+df_imp['unit_2'] = ifelse(df_imp$unit==2, 1, 0)
+df_imp['unit_3'] = ifelse(df_imp$unit==3, 1, 0)
+df_imp['unit_4'] = ifelse(df_imp$unit==4, 1, 0)
+df_imp['unit_5'] = ifelse(df_imp$unit==5, 1, 0)
+df_imp['unit_6'] = ifelse(df_imp$unit==6, 1, 0)
+
+df_imp['stage_0'] = ifelse(df_imp$stage==0, 1, 0)
+df_imp['stage_1'] = ifelse(df_imp$stage==1, 1, 0)
+df_imp['stage_2'] = ifelse(df_imp$stage==2, 1, 0)
+df_imp['stage_3'] = ifelse(df_imp$stage==3, 1, 0)
+df_imp['stage_4'] = ifelse(df_imp$stage==4, 1, 0)
+
+vars = c("age","crea","alb","bili","alkph","asptr","weight","unit_1","unit_2","unit_3","unit_4","unit_5","unit_6","sex","stage_0","stage_1","stage_2","stage_3","stage_4","gibleed","tment")
+
+# stepwise w/ indicator categorical variables
+My.stepwise.coxph(Time='days', Status = 'agg_status',
+                  variable.list = vars,
+                  data=df_imp, sle=0.2, sls=0.15)
+
+
+```
+  
+### Model fitting  
+  
+  Using the features identified in the stepwise selection a Cox Proportional Hazard model is fit. Examining the significance of the covariates' coefficients indicates that age and stage fail to reach statistical significance at a significance level of 0.05. Removing these features and fitting a reduced model produces a reduced model that can be compared to the full model via the Likelihood ratio test. The test statistic is 61.8 and compared to a chi-square distribution with 2 degrees of freedom the corresponding p-value is ~0 and hence we must reject the null hypothesis of a simpler model.  
+  Similar tests for models that remove stage and age individually result in the same conclusion: we must retain the full model.  
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+
+#bili + alb + stage_4 + sex + weight + stage_3 + stage_0 + asptr + age
+
+# recode categorical variables
+cat_cols = c('unit', 'tment', 'sex', 'stage', 'gibleed')
+df_imp[,cat_cols] = sapply(df_imp[,cat_cols], function(x) as.factor(x))
+
+# full model
+fit_full <- coxph(formula = Surv(days, agg_status)~bili + alb + stage + sex + weight + asptr + age + tment, data = df_imp)
+
+summary(fit_full)
+
+# -stage, -age
+fit_red <- coxph(formula = Surv(days, agg_status)~bili + alb + sex + weight + asptr + tment, data = df_imp)
+
+summary(fit_red)
+
+# -stage
+fit_red2 <- coxph(formula = Surv(days, agg_status)~bili + alb + sex + weight + asptr + tment + age, data = df_imp)
+
+summary(fit_red2)
+
+
+# -age
+fit_red3 <- coxph(formula = Surv(days, agg_status)~bili + alb + sex + weight +  asptr + tment + stage, data = df_imp)
+
+summary(fit_red3)
+```    
+  
+  
+### Residual diagnosis  
+  
+  Reviewing the Martingale residuals to assess the functional form of the continuous variables it can be seen that there is perhaps quadratic and cubic form of the bilirubin and albumin predictors ("bili" and "alb"). Including these terms in the full model produces a significant term for the quadratic bilirubin term, so this is retained. Replotting the new Martingale residuals exhbits an improved trend across the predictor.  
+  Interestingly, including this quadratic term results in a model in which the weight and aspartate transaminase ("asptr") are no longer significant.     
+  The proportional hazard assumption is evaluated by plotting Schoenfeld residuals against event times. Reviewing each of the covariates' Schoenfeld residuals across event times reveals that all 95% confidence intervals of a smoothed fit cover hte y==zero baseline and no discernible pattern is evident, except in the case of the stage1 covariate. However, the values of the residuals are so small (~ -1e-9) that no corrective action is pursued.      
+  
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+# martingale residuals
+
+# fit null model
+fit_null <- coxph(formula = Surv(days, agg_status)~1, data = df_imp)
+# get residuals
+fit_null_res_mar=residuals(fit_null, type='martingale')
+# plot martingale residuals against continuous predictors
+df_imp['res_mar'] = fit_null_res_mar
+melt_cols = c('ptno', 'bili', 'alb', 'weight', 'asptr', 'age', 'res_mar')
+melt.df = melt(df_imp[, melt_cols], id.vars=c('ptno','res_mar'))
+
+ggplot(melt.df, aes(x = value, y = res_mar)) +
+  geom_point() +
+  geom_smooth(method="loess", color="red") +
+  theme_minimal() +
+  facet_wrap(~variable, ncol = 2, scales = "free") +
+  labs(
+    x = "",
+    y = "Martingale residuals",
+    title = "Martingale residuals vs continuous predictors"
+  )
+
+df_imp$bili_2 = df_imp$bili^2
+df_imp$alb_2 = df_imp$alb^2
+df_imp$alb_3 = df_imp$alb^3
+fit_full_exp <- coxph(formula = Surv(days, agg_status)~bili + bili_2 + alb + alb_2 + alb_3 + stage + sex + weight + asptr + age + tment, data = df_imp)
+
+summary(fit_full_exp)
+
+fit_full_bili_2 <- coxph(formula = Surv(days, agg_status)~bili + bili_2 + alb + stage + sex + weight + asptr + age + tment, data = df_imp)
+
+summary(fit_full_bili_2)
+
+# recheck residuals
+# get residuals from model w/ bili_2
+fit_full_bili_2_res_mar=residuals(fit_full_bili_2, type='martingale')
+# plot martingale residuals against continuous predictors
+df_imp['res_mar_bili_2'] = fit_full_bili_2_res_mar
+melt_cols_2 = c('ptno', 'bili', 'alb', 'weight', 'asptr', 'age', 'res_mar_bili_2')
+melt.df_2 = melt(df_imp[, melt_cols_2], id.vars=c('ptno','res_mar_bili_2'))
+ggplot(melt.df_2, aes(x = value, y = res_mar_bili_2)) +
+  geom_point() +
+  geom_smooth(method="loess", color="red") +
+  theme_minimal() +
+  facet_wrap(~variable, ncol = 2, scales = "free") +
+  labs(
+    x = "",
+    y = "Martingale residuals",
+    title = "Martingale residuals vs continuous predictors with quadratic term"
+  )
+
+
+
+```  
+    
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+fit_full_bili_2_res_sch= residuals(fit_full_bili_2, type='schoenfeld')
+df_sch = cbind(data.frame(fit_full_bili_2_res_sch), df_imp[df_imp$agg_status==1,'days'])
+colnames(df_sch)[13] = "days"
+df_sch_melt = melt(df_sch, id.vars = c('days'))
+
+#bili + bili_2 + alb + stage + sex + weight + asptr + age + tment
+ggplot(df_sch_melt[df_sch_melt$variable=="bili",], aes(x = days, y = value)) +
+  geom_point() +
+  geom_smooth(method="loess", color="red") +
+  theme_minimal() +
+#  facet_wrap(~variable, ncol = 1, scales = "free") +
+  labs(
+    x = "",
+    y = "Schoenfeld residuals",
+    title = "Schoenfeld residuals: bili vs event time"
+  )
+
+ggplot(df_sch_melt[df_sch_melt$variable=="bili_2",], aes(x = days, y = value)) +
+  geom_point() +
+  geom_smooth(method="loess", color="red") +
+  theme_minimal() +
+#  facet_wrap(~variable, ncol = 1, scales = "free") +
+  labs(
+    x = "",
+    y = "Schoenfeld residuals",
+    title = "Schoenfeld residuals: bili2 vs event time"
+  )
+
+ggplot(df_sch_melt[df_sch_melt$variable=="alb",], aes(x = days, y = value)) +
+  geom_point() +
+  geom_smooth(method="loess", color="red") +
+  theme_minimal() +
+#  facet_wrap(~variable, ncol = 1, scales = "free") +
+  labs(
+    x = "",
+    y = "Schoenfeld residuals",
+    title = "Schoenfeld residuals: alb vs event time"
+  )
+
+ggplot(df_sch_melt[df_sch_melt$variable=="weight",], aes(x = days, y = value)) +
+  geom_point() +
+  geom_smooth(method="loess", color="red") +
+  theme_minimal() +
+#  facet_wrap(~variable, ncol = 1, scales = "free") +
+  labs(
+    x = "",
+    y = "Schoenfeld residuals",
+    title = "Schoenfeld residuals: weight vs event time"
+  )
+
+ggplot(df_sch_melt[df_sch_melt$variable=="asptr",], aes(x = days, y = value)) +
+  geom_point() +
+  geom_smooth(method="loess", color="red") +
+  theme_minimal() +
+#  facet_wrap(~variable, ncol = 1, scales = "free") +
+  labs(
+    x = "",
+    y = "Schoenfeld residuals",
+    title = "Schoenfeld residuals: asptr vs event time"
+  )
+
+ggplot(df_sch_melt[df_sch_melt$variable=="age",], aes(x = days, y = value)) +
+  geom_point() +
+  geom_smooth(method="loess", color="red") +
+  theme_minimal() +
+#  facet_wrap(~variable, ncol = 1, scales = "free") +
+  labs(
+    x = "",
+    y = "Schoenfeld residuals",
+    title = "Schoenfeld residuals: age vs event time"
+  )
+
+ggplot(df_sch_melt[df_sch_melt$variable=="stage1",], aes(x = days, y = value)) +
+  geom_point() +
+  geom_smooth(method="loess", color="red") +
+  theme_minimal() +
+#  facet_wrap(~variable, ncol = 1, scales = "free") +
+  labs(
+    x = "",
+    y = "Schoenfeld residuals",
+    title = "Schoenfeld residuals: stage1 vs event time"
+  )
+
+ggplot(df_sch_melt[df_sch_melt$variable=="stage2",], aes(x = days, y = value)) +
+  geom_point() +
+  geom_smooth(method="loess", color="red") +
+  theme_minimal() +
+#  facet_wrap(~variable, ncol = 1, scales = "free") +
+  labs(
+    x = "",
+    y = "Schoenfeld residuals",
+    title = "Schoenfeld residuals: stage2 vs event time"
+  )
+
+ggplot(df_sch_melt[df_sch_melt$variable=="stage3",], aes(x = days, y = value)) +
+  geom_point() +
+  geom_smooth(method="loess", color="red") +
+  theme_minimal() +
+#  facet_wrap(~variable, ncol = 1, scales = "free") +
+  labs(
+    x = "",
+    y = "Schoenfeld residuals",
+    title = "Schoenfeld residuals: stage3 vs event time"
+  )
+
+ggplot(df_sch_melt[df_sch_melt$variable=="stage4",], aes(x = days, y = value)) +
+  geom_point() +
+  geom_smooth(method="loess", color="red") +
+  theme_minimal() +
+#  facet_wrap(~variable, ncol = 1, scales = "free") +
+  labs(
+    x = "",
+    y = "Schoenfeld residuals",
+    title = "Schoenfeld residuals: stage4 vs event time"
+  )
+
+ggplot(df_sch_melt[df_sch_melt$variable=="sex1",], aes(x = days, y = value)) +
+  geom_point() +
+  geom_smooth(method="loess", color="red") +
+  theme_minimal() +
+#  facet_wrap(~variable, ncol = 1, scales = "free") +
+  labs(
+    x = "",
+    y = "Schoenfeld residuals",
+    title = "Schoenfeld residuals: sex1 vs event time"
+  )
+
+ggplot(df_sch_melt[df_sch_melt$variable=="tment1",], aes(x = days, y = value)) +
+  geom_point() +
+  geom_smooth(method="loess", color="red") +
+  theme_minimal() +
+#  facet_wrap(~variable, ncol = 1, scales = "free") +
+  labs(
+    x = "",
+    y = "Schoenfeld residuals",
+    title = "Schoenfeld residuals: tment1 vs event time"
+  )
+
+```
+    
+## Discussion  
+  
+  The final model chosen is of the form of a Cox Proportional Hazard model including the following terms:  
+    - bilirubin, including a quadratic term    
+    - albumin  
+    - stage1, stage2, stage3, stage4  
+    - sex  
+    - weight  
+    - aspartate transaminase  
+    - age  
+    - treatment  
+  
+  The quadratic term was determined by inspection of Martingale residuals. Schoenfeld residuals generally exhibited no obvious pattern and hence the assumption of proportional hazard was retained.  
+  Reviewing the covariate coefficients and their corresponding p-values, the following covariates were found to be statistically significant at a significance level of 0.05:  
+    - bilirubin  
+    - albumin  
+    - sex  
+    - treatment  
+  
+  Bilirubin is found to be highly significant, resulting in a 1.5% increase in hazard rate with each unit increase (micromoles/L). Albumin is also strongly significant, exhibiting a 6% decrease in hazard rate for each unit increase (g/L). Gender is also strongly significant, with males' hazard rate ~2.6 times females, all else being equal. Finally, treatment of patients with Cyclosporin A was found to reduce the hazard rate by ~38% with respect to the placebo baseline.  
+  While gathering data from multiple hospitals presumably diversifies the sample composition, it could be assumed that there is some correlation within hospitals. Since unit was not found to be statistically significant, it is not controlled for in the final model. Also, the stage variable appeared to be a strong indicator of observed event times, but was not found to be statistically significant. The imputation method pursued above can likely be improved upon; ideally, histological stage data would be available for all patients. Perhaps a stratified Cox Proportional Hazard model would be an effective way to deal with the significant missing data.  
+
+
+### Appendix: R code
+```{r ref.label=knitr::all_labels(), echo = T, eval = F}
+```
