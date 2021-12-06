@@ -286,7 +286,26 @@ ggplot(melt.df_2, aes(x = value, y = res_mar_bili_2)) +
     title = "Martingale residuals vs continuous predictors with quadratic term"
   )
 
+# Cox-Snell residuals
+df_imp['res_cs_bili_2'] = -(df_imp$res_mar_bili_2 - df_imp$agg_status)
 
+# fit model on Cox-Snell
+fit_coxsnell = coxph(formula = Surv(res_cs_bili_2, agg_status)~1,
+                     data=df_imp)
+
+df_base_haz = basehaz(fit_coxsnell, centered = FALSE)
+
+head(df_base_haz)
+
+ggplot(df_base_haz, aes(x=time, y = hazard)) +
+  geom_point() +
+  geom_abline(slope =1, intercept = 0, color = "red") +
+  theme_minimal() +
+  labs(
+    title = "Cox-Snell residuals suggest good fit",
+    x = "Time",
+    y = "Hazard"
+  )
 
 ```  
     
