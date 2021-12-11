@@ -1,0 +1,82 @@
+---
+title: "ST525 Lab Activity 10: Stepwise Regression Example"
+output: pdf_document
+urlcolor: cyan
+---
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = T, warning = F, message = F, 
+                      fig.align = "center", 
+                      fig.width = 6, fig.height = 4)
+```
+
+# Lab objectives
+
+Perform step-wise variable selection in Cox proportinal hazard models.
+
+# Data
+Consider the data from a study on multiple myeloma in which researchers treated 65 patients with alkylating agents. Of those patients, 48 died during the study and 17 survived. In the data set Myeloma, the survival time is
+
+* __Time__: the survival (or censoring) time in months from diagnosis. 
+* __VStatus__: 0 and 1, indicating whether the patient was alive or dead at the end of the study. If the value of VStatus is 0, the corresponding value of Time is censored. 
+
+The variables thought to be related to survival are LogBUN (log(BUN) at diagnosis), HGB (hemoglobin at diagnosis), Platelet (platelets at diagnosis: 0=abnormal, 1=normal), Age (age at diagnosis in years), LogWBC (log(WBC) at diagnosis), Frac (fractures at diagnosis: 0=none, 1=present), LogPBM (log percentage of plasma cells in bone marrow), Protein (proteinuria at diagnosis), and SCalc (serum calcium at diagnosis). Interest lies in identifying important prognostic factors from these nine explanatory variables.  
+
+
+Please remember to download the file "myeloma.txt" from Canvas and save it in your working directory.
+
+```{r}
+df <- read.table('myeloma.txt', header = TRUE)
+
+```
+
+# Stepwise variable selection 
+
+The stepwise variable selection process consists of a series of alternating step-up and step-down phases. The step-up phrases add variables to the model, while the step-down phrases remove variables from the model.
+
+Stepwise regression analysis can be implemented using function __My.stepwise.coxph__ in the package *My.stepwise*.
+
+* __Time__ is  the time to event or censoring in the CoxPH model
+* __Status__ is the event indicator for the observations (1=event, 0=censoring)
+* __sle__ specifies significance level for entry. By default,  sle=0.15,  which means a variable has to be significant with p-value<=0.15 to be enter into the model
+* __sls__ specifies significance level for stay.  By default,  sls=0.15, which means  a variable in the model has to be significant at the 0.15 level (p-value<=0.15) for it to remain in the model, and a variable  will be removed from the model when  p-value>0.15. 
+
+```{r}
+library(survival)
+library(My.stepwise)
+My.stepwise.coxph(Time='Time',Status = 'VStatus',variable.list =
+                    c('LogBUN','HGB','Platelet','Age','LogWBC',
+                      'Frac','LogPBM','Protein','SCalc'),
+                  data=df,sle=0.2,sls=0.15)
+```
+
+The output records the entire adding and deleting process. Starting with a null  model, the first step is to determine which of the the 9 covariates to be added into the model. For each of the 9 covariates, a model containing that covariate  as the only explanatory variable is considered.  The score test is used to test the significance of that single variable in the model. The variable (LogBUN) with the smallest p-value (p=0.00337) is selected to enter the model at the __sle__=0.2 in the first step. 
+
+The next step consists of selecting another variable to add to the model. The variable HGB is selected because it has the smallest p-value (p=0.03717) at the __sle__=0.2 level. Variance Inflating Factor is calculated for detecting potential  multicollinearity problem when additional covariate is added. In this case, the VIF values are quite small. No indication of the existence of multicollinearity. (A rule of thumb is that multicollinearity if VIF>10)
+
+This addition step is repeated, and the variables SCalc, Age are added into the  model one at a time. The addition step stop when there is  no more variables can be added into the model at the __sle__=0.2 level.
+
+Note that Age has the largest p-value and it is not significant (p=0.1808) at the __sls__=0.15 level. The variable Age is then removed from the model in a step-down phase. And SCalc is then removed with similar reason. The removal of Age and SCalc brings the stepwise selection process to a stop in order to avoid repeatedly entering and removing the same variable. 
+
+In summary, the stepwise selection process results in a model with two explanatory variables, LogBUN and HGB.
+
+# Analysis of Residuals
+Now we assess if the selected model provides adequate fit to the data by analysis of the residuals.
+
+```{r}
+library(ggplot2)
+fit1 <- coxph(formula = Surv(Time, VStatus)~LogBUN+HGB,
+              data = df)
+df$res_mar <- residuals(fit1, type = 'martingale')
+df$res_dev <- residuals(fit1, type = 'deviance')
+df$linear.predictors <- fit1$linear.predictors
+ggplot(data = df)+geom_point(aes(x=linear.predictors,y=res_mar),
+                             col='blue', shape=1,size=2)+
+  ylab('Martingale Residual')
+ggplot(data = df)+geom_point(aes(x=linear.predictors,y=res_dev),
+                             col='blue', shape=1,size=2)+
+  ylab('Deviance Residual')
+
+```
+Both martingale and deviance residuals suggest that there is no indication of a lack of fit of the model to the data. In particular, no obvious trend/pattern exists in martingale residuals, and all deviance residuals are between -3 and 3.
+
+
